@@ -23,16 +23,22 @@
       <el-tab-pane label="绿区白名单" name="zone-green">
         <ZonePermissionPanel zone="green" />
       </el-tab-pane>
+      <el-tab-pane v-if="authStore.isAdmin" label="系统用户" name="users">
+        <SysUsersPanel />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import DepartmentTree from './components/DepartmentTree.vue'
 import PersonnelList from './components/PersonnelList.vue'
 import ZonePermissionPanel from './components/ZonePermissionPanel.vue'
+import SysUsersPanel from './components/SysUsersPanel.vue'
 
+const authStore = useAuthStore()
 const activeTab = ref('departments')
 </script>
 

@@ -2,7 +2,7 @@
   <div class="zone-perm-page">
     <el-card shadow="never" class="toolbar-card">
       <div class="toolbar">
-        <el-button type="primary" :loading="loading" @click="batchDialogVisible = true">
+        <el-button v-if="authStore.isAdmin" type="primary" :loading="loading" @click="batchDialogVisible = true">
           <el-icon><Plus /></el-icon>
           批量配置
         </el-button>
@@ -29,7 +29,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column v-if="authStore.isAdmin" label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
             <el-button type="danger" link size="small" @click="handleRemove(row)">移除</el-button>
@@ -90,8 +90,10 @@ import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PieChart } from '@element-plus/icons-vue'
 import { zonePermissionApi } from '@/api/zonePermission'
+import { useAuthStore } from '@/stores/auth'
 import { ZONE_META, type NetworkZone, type ZonePermissionItem } from '@/types'
 
+const authStore = useAuthStore()
 const ZonePermissionStatsDialog = defineAsyncComponent(() => import('./ZonePermissionStatsDialog.vue'))
 
 const props = defineProps<{ zone: NetworkZone }>()

@@ -1,11 +1,58 @@
-export type UserRole = 'admin' | 'operator' | 'viewer'
+export type UserRole = 'admin' | 'viewer'
 
-export interface User {
+export interface AuthUser {
   id: number
   username: string
   name: string
-  department: string
   role: UserRole
+  must_change_password: boolean
+}
+
+export interface LoginPayload {
+  username: string
+  password: string
+}
+
+export interface ChangePasswordPayload {
+  old_password: string
+  new_password: string
+}
+
+export interface SysUserItem {
+  id: number
+  username: string
+  name: string
+  role: UserRole
+  is_active: boolean
+  must_change_password: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface SysUserListResponse {
+  items: SysUserItem[]
+}
+
+export interface SysUserCreatePayload {
+  username: string
+  name: string
+  role: UserRole
+  password?: string
+}
+
+export interface SysUserUpdatePayload {
+  name?: string
+  role?: UserRole
+  is_active?: boolean
+}
+
+export interface SysUserCreateResponse {
+  user: SysUserItem
+  temporary_password: string
+}
+
+export interface SysUserResetPasswordResponse {
+  temporary_password: string
 }
 
 export type ModuleStatus = 'ready' | 'developing' | 'planned'

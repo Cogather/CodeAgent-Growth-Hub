@@ -2,7 +2,7 @@
   <div class="personnel-page">
     <el-card shadow="never" class="toolbar-card">
       <div class="toolbar">
-        <el-button type="primary" :loading="personnelStore.loading" @click="importDialogVisible = true">
+        <el-button v-if="authStore.isAdmin" type="primary" :loading="personnelStore.loading" @click="importDialogVisible = true">
           <el-icon><Plus /></el-icon>
           批量导入工号
         </el-button>
@@ -60,7 +60,7 @@
             {{ row[`dept_l${level}_name` as keyof PersonnelItem] || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column v-if="authStore.isAdmin" label="操作" width="130" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
             <el-button type="danger" link size="small" @click="handleDelete(row)">移除</el-button>
@@ -115,10 +115,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type TableInstance } from 'element-plus'
 import { usePersonnelStore } from '@/stores/personnel'
+import { useAuthStore } from '@/stores/auth'
 import { DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
 
 type FilterOption = { text: string; value: string }
 
+const authStore = useAuthStore()
 const personnelStore = usePersonnelStore()
 const tableRef = ref<TableInstance>()
 const importDialogVisible = ref(false)

@@ -5,14 +5,23 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
 
-const app = createApp(App)
+async function bootstrap() {
+  const app = createApp(App)
 
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component)
+  for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component)
+  }
+
+  app.use(ElementPlus)
+  const pinia = createPinia()
+  app.use(pinia)
+
+  await useAuthStore().fetchMe()
+
+  app.use(router)
+  app.mount('#app')
 }
 
-app.use(ElementPlus)
-app.use(createPinia())
-app.use(router)
-app.mount('#app')
+void bootstrap()

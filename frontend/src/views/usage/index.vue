@@ -4,7 +4,7 @@
       <el-tab-pane label="使用数据" name="data">
         <el-card shadow="never" class="toolbar-card">
           <div class="toolbar">
-            <el-button type="primary" :loading="store.loading" @click="importDialogVisible = true">
+            <el-button v-if="authStore.isAdmin" type="primary" :loading="store.loading" @click="importDialogVisible = true">
               <el-icon><Upload /></el-icon>
               导入 Excel
             </el-button>
@@ -127,12 +127,14 @@
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { ElMessage, type TabPaneName, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
 import { useUsageStatsStore } from '@/stores/usageStats'
+import { useAuthStore } from '@/stores/auth'
 import { DEPT_LEVELS, type UsageStatItem } from '@/types'
 
 const UsageStatsCharts = defineAsyncComponent(() => import('./components/UsageStatsCharts.vue'))
 
 type FilterOption = { text: string; value: string }
 
+const authStore = useAuthStore()
 const store = useUsageStatsStore()
 const tableRef = ref<TableInstance>()
 const chartsRef = ref<{ refreshCharts: () => void }>()

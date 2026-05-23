@@ -7,6 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.deps.auth import get_current_user, require_admin
 from app.models import DEPT_LEVELS, MetaPersonnel, StatUsage
 from app.schemas import (
     UsageExportExceptionsRequest,
@@ -26,7 +27,11 @@ from app.services.usage_excel import (
 )
 from app.services.usage_roster import list_authorized_personnel
 
-router = APIRouter(prefix="/usage-stats", tags=["usage-stats"])
+router = APIRouter(
+    prefix="/usage-stats",
+    tags=["usage-stats"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _last_imported_at(db: Session) -> str | None:
@@ -84,7 +89,7 @@ def download_usage_template():
     )
 
 
-@router.post("/import", response_model=UsageStatImportResponse)
+@router.post("/import", response_model=UsageStatImportResponse, dependencies=[Depends(require_admin)])
 async def import_usage_stats(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xlsm")):
         raise HTTPException(status_code=400, detail="请上传 .xlsx 格式的 Excel 文件")

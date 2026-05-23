@@ -28,6 +28,21 @@ class Settings(BaseSettings):
     mysql_password: str = Field(default="", alias="MYSQL_PASSWORD")
     mysql_database: str = Field(default="codeagent_growth_hub", alias="MYSQL_DATABASE")
 
+    jwt_secret_key: str = Field(
+        default="change-me-in-production-use-long-random-string",
+        alias="JWT_SECRET_KEY",
+    )
+    jwt_expire_hours: int = Field(default=8, alias="JWT_EXPIRE_HOURS")
+    cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
+    frontend_origins: str = Field(
+        default="http://localhost:3000,http://127.0.0.1:3000",
+        alias="FRONTEND_ORIGINS",
+    )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]
+
     @property
     def sqlalchemy_database_url(self) -> str:
         if self.database_url:

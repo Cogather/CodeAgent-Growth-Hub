@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.deps.auth import get_current_user, require_admin
 from app.models import MetaPersonnel
 from app.schemas import (
     ZoneImportFailureItem,
@@ -16,7 +17,11 @@ from app.schemas import (
 from app.services.hr_lookup import display_emp_no
 from app.services.zone_config import ZONES, get_zone
 
-router = APIRouter(prefix="/zone-permissions", tags=["zone-permissions"])
+router = APIRouter(
+    prefix="/zone-permissions",
+    tags=["zone-permissions"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _parse_csv(text: str) -> list[str]:
@@ -70,7 +75,7 @@ def list_zone_permissions(zone: str, db: Session = Depends(get_db)):
     return ZonePermissionListResponse(zone=cfg.key, zone_label=cfg.label, items=items)
 
 
-@router.post("/{zone}/batch", response_model=ZonePermissionBatchResponse)
+@router.post("/{zone}/batch", response_model=ZonePermissionBatchResponse, dependencies=[Depends(require_admin)])
 def batch_upsert_zone_permissions(
     zone: str, payload: ZonePermissionBatchRequest, db: Session = Depends(get_db)
 ):
@@ -113,7 +118,7 @@ def batch_upsert_zone_permissions(
     return ZonePermissionBatchResponse(upserted_count=upserted_count, failures=failures)
 
 
-@router.put("/{zone}/{emp_no}", response_model=ZonePermissionItem)
+@router.put("/{zone}/{emp_no}", response_model=ZonePermissionItem, dependencies=[Depends(require_admin)])
 def update_zone_permission(
     zone: str, emp_no: str, payload: ZonePermissionUpdate, db: Session = Depends(get_db)
 ):
@@ -147,7 +152,7 @@ def update_zone_permission(
     )
 
 
-@router.delete("/{zone}/{emp_no}", status_code=204)
+@router.delete("/{zone}/{emp_no}", status_code=204, dependencies=[Depends(require_admin)])
 def delete_zone_permission(zone: str, emp_no: str, db: Session = Depends(get_db)):
     try:
         cfg = get_zone(zone)

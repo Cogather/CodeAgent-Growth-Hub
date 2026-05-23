@@ -55,3 +55,16 @@ CREATE TABLE IF NOT EXISTS stat_usage (
     usage_count     INT NOT NULL DEFAULT 0,
     imported_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sys_user (
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    username                VARCHAR(64) NOT NULL,
+    name                    VARCHAR(128) NOT NULL,
+    password_hash           VARCHAR(255) NOT NULL,
+    role                    VARCHAR(16) NOT NULL DEFAULT 'viewer',
+    is_active               TINYINT(1) NOT NULL DEFAULT 1,
+    must_change_password    TINYINT(1) NOT NULL DEFAULT 1,
+    created_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_sys_user_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

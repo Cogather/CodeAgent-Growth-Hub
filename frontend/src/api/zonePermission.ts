@@ -1,3 +1,4 @@
+import { requestJson } from '@/api/client'
 import type {
   NetworkZone,
   ZonePermissionBatchResponse,
@@ -5,21 +6,6 @@ import type {
   ZonePermissionListResponse,
   ZonePermissionUpdatePayload
 } from '@/types'
-
-const BASE = '/api'
-
-async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  })
-  if (res.status === 204) return undefined as T
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    throw new Error(typeof data.detail === 'string' ? data.detail : `请求失败 (${res.status})`)
-  }
-  return data as T
-}
 
 export const zonePermissionApi = {
   list: (zone: NetworkZone) => requestJson<ZonePermissionListResponse>(`/zone-permissions/${zone}`),

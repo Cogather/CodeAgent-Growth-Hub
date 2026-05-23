@@ -2,10 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.deps.auth import get_current_user, require_admin
 from app.models import MetaDepartment
 from app.schemas import DepartmentCreate, DepartmentFlat, DepartmentNode, DepartmentUpdate, RootStatus
 
-router = APIRouter(prefix="/departments", tags=["departments"])
+router = APIRouter(
+    prefix="/departments",
+    tags=["departments"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _validate_dept_name(name: str) -> str:
@@ -57,7 +62,7 @@ def get_department_tree(db: Session = Depends(get_db)):
     return _build_tree(nodes)
 
 
-@router.post("", response_model=DepartmentFlat, status_code=201)
+@router.post("", response_model=DepartmentFlat, status_code=201, dependencies=[Depends(require_admin)])
 def create_department(payload: DepartmentCreate, db: Session = Depends(get_db)):
     if payload.parent_id is None:
         if db.query(MetaDepartment).filter(MetaDepartment.parent_id.is_(None)).first():
@@ -81,7 +86,7 @@ def create_department(payload: DepartmentCreate, db: Session = Depends(get_db)):
     return dept
 
 
-@router.put("/{dept_id}", response_model=DepartmentFlat)
+@router.put("/{dept_id}", response_model=DepartmentFlat, dependencies=[Depends(require_admin)])
 def update_department(dept_id: int, payload: DepartmentUpdate, db: Session = Depends(get_db)):
     dept = _get_or_404(db, dept_id)
     name = _validate_dept_name(payload.name)
@@ -104,7 +109,7 @@ def update_department(dept_id: int, payload: DepartmentUpdate, db: Session = Dep
     return dept
 
 
-@router.delete("/{dept_id}", status_code=204)
+@router.delete("/{dept_id}", status_code=204, dependencies=[Depends(require_admin)])
 def delete_department(dept_id: int, db: Session = Depends(get_db)):
     dept = _get_or_404(db, dept_id)
 

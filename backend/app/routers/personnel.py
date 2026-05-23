@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.deps.auth import get_current_user, require_admin
 from app.models import DEPT_LEVELS, MetaPersonnel
 from app.schemas import (
     ExportExceptionsRequest,
@@ -30,7 +31,11 @@ from app.services.hr_lookup import (
 )
 from app.services.personnel_fields import apply_dept_fields_to_model, model_dept_fields_from_payload
 
-router = APIRouter(prefix="/personnel", tags=["personnel"])
+router = APIRouter(
+    prefix="/personnel",
+    tags=["personnel"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _parse_emp_nos(text: str) -> list[str]:
@@ -73,7 +78,7 @@ def list_personnel(db: Session = Depends(get_db)):
     return PersonnelListResponse(items=[_to_personnel_item(p) for p in personnel])
 
 
-@router.post("/batch-import", response_model=PersonnelBatchImportResponse)
+@router.post("/batch-import", response_model=PersonnelBatchImportResponse, dependencies=[Depends(require_admin)])
 def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = Depends(get_db)):
     emp_nos = _parse_emp_nos(payload.emp_nos_text)
     if not emp_nos:
@@ -140,7 +145,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
     return PersonnelBatchImportResponse(imported_count=imported_count, failures=failures)
 
 
-@router.post("/export-exceptions")
+@router.post("/export-exceptions", dependencies=[Depends(require_admin)])
 def export_import_exceptions(payload: ExportExceptionsRequest):
     if not payload.failures:
         raise HTTPException(status_code=400, detail="没有异常记录可导出")
@@ -153,7 +158,7 @@ def export_import_exceptions(payload: ExportExceptionsRequest):
     )
 
 
-@router.put("/{emp_no}", response_model=PersonnelItem)
+@router.put("/{emp_no}", response_model=PersonnelItem, dependencies=[Depends(require_admin)])
 def update_personnel(emp_no: str, payload: PersonnelUpdate, db: Session = Depends(get_db)):
     person = db.get(MetaPersonnel, emp_no)
     if not person:
@@ -168,7 +173,7 @@ def update_personnel(emp_no: str, payload: PersonnelUpdate, db: Session = Depend
     return _to_personnel_item(person)
 
 
-@router.delete("/{emp_no}", status_code=204)
+@router.delete("/{emp_no}", status_code=204, dependencies=[Depends(require_admin)])
 def delete_personnel(emp_no: str, db: Session = Depends(get_db)):
     person = db.get(MetaPersonnel, emp_no)
     if not person:

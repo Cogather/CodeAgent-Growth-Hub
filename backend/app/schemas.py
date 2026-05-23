@@ -147,3 +147,58 @@ class UsageExportExceptionsRequest(BaseModel):
 
 class UsageExportZeroUsageRequest(BaseModel):
     dept_path: List[str] = Field(default_factory=list, description="部门路径，空表示全部有权限人员")
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=1, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+class AuthUser(BaseModel):
+    id: int
+    username: str
+    name: str
+    role: str
+    must_change_password: bool
+
+
+class SysUserItem(BaseModel):
+    id: int
+    username: str
+    name: str
+    role: str
+    is_active: bool
+    must_change_password: bool
+    created_at: str
+    updated_at: str
+
+
+class SysUserListResponse(BaseModel):
+    items: List[SysUserItem]
+
+
+class SysUserCreate(BaseModel):
+    username: str = Field(..., min_length=2, max_length=64)
+    name: str = Field(..., min_length=1, max_length=128)
+    role: str = Field(default="viewer", pattern="^(admin|viewer)$")
+    password: Optional[str] = Field(default=None, min_length=8, max_length=128)
+
+
+class SysUserUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    role: Optional[str] = Field(default=None, pattern="^(admin|viewer)$")
+    is_active: Optional[bool] = None
+
+
+class SysUserCreateResponse(BaseModel):
+    user: SysUserItem
+    temporary_password: str
+
+
+class SysUserResetPasswordResponse(BaseModel):
+    temporary_password: str

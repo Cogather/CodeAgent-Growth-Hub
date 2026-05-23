@@ -4,7 +4,7 @@
       <div class="toolbar">
         <div class="toolbar-left">
           <el-button
-            v-if="!deptStore.rootStatus.has_root"
+            v-if="authStore.isAdmin && !deptStore.rootStatus.has_root"
             type="primary"
             :loading="deptStore.loading"
             @click="openCreate(null)"
@@ -27,7 +27,7 @@
       </template>
 
       <el-empty v-if="!deptStore.rootStatus.has_root" description="尚未配置根部门">
-        <el-button type="primary" @click="openCreate(null)">创建根部门</el-button>
+        <el-button v-if="authStore.isAdmin" type="primary" @click="openCreate(null)">创建根部门</el-button>
       </el-empty>
 
       <el-tree
@@ -97,8 +97,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useDepartmentStore } from '@/stores/department'
+import { useAuthStore } from '@/stores/auth'
 import type { DepartmentNode } from '@/types'
 
+const authStore = useAuthStore()
 const deptStore = useDepartmentStore()
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')

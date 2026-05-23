@@ -67,13 +67,15 @@
                 <el-icon><User /></el-icon>
               </div>
               <span class="username">{{ authStore.user?.name }}</span>
-              <el-tag size="small" type="warning" effect="dark">运营</el-tag>
+              <el-tag size="small" :type="authStore.isAdmin ? 'warning' : 'info'" effect="dark">
+                {{ authStore.isAdmin ? '管理员' : '只读' }}
+              </el-tag>
               <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="switchAdmin">切换为管理员</el-dropdown-item>
-                <el-dropdown-item command="switchUser">切换为查看者</el-dropdown-item>
+                <el-dropdown-item command="changePassword">修改密码</el-dropdown-item>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -89,11 +91,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { APP_MODULES, APP_NAME } from '@/config/modules'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
 
@@ -124,12 +127,14 @@ onUnmounted(() => {
   clearInterval(timeInterval)
 })
 
-const handleCommand = (command: string) => {
-  if (!authStore.user) return
-  if (command === 'switchAdmin') {
-    authStore.setUser({ ...authStore.user, role: 'admin' })
-  } else if (command === 'switchUser') {
-    authStore.setUser({ ...authStore.user, role: 'viewer' })
+const handleCommand = async (command: string) => {
+  if (command === 'changePassword') {
+    await router.push('/change-password')
+    return
+  }
+  if (command === 'logout') {
+    await authStore.logout()
+    await router.replace('/login')
   }
 }
 </script>

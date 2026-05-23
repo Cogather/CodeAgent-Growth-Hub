@@ -169,3 +169,33 @@ def build_usage_import_failures_excel(failures: list[dict[str, Any]]) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def build_zero_usage_excel(items: list[dict[str, Any]]) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "未使用人员"
+
+    headers = ["工号", "姓名"]
+    for level in range(1, 8):
+        headers.extend([f"{level}级部门", f"{level}级部门编码"])
+    headers.append("使用次数")
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    for item in items:
+        row = [item.get("display_emp_no", ""), item.get("name", "")]
+        for level in range(1, 8):
+            row.append(item.get(f"dept_l{level}_name") or "")
+            row.append(item.get(f"dept_l{level}_code") or "")
+        row.append(item.get("usage_count", 0))
+        ws.append(row)
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 36)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

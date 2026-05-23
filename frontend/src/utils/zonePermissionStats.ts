@@ -1,5 +1,16 @@
 import type { DepartmentNode, PersonnelItem } from '@/types'
 
+export type DeptPathRecord = Pick<
+  PersonnelItem,
+  | 'dept_l1_name'
+  | 'dept_l2_name'
+  | 'dept_l3_name'
+  | 'dept_l4_name'
+  | 'dept_l5_name'
+  | 'dept_l6_name'
+  | 'dept_l7_name'
+>
+
 export interface PermissionSummary {
   total: number
   withPermission: number
@@ -37,17 +48,21 @@ export function findDeptNode(nodes: DepartmentNode[], targetId: number): Departm
   return null
 }
 
-export function personMatchesDeptPath(person: PersonnelItem, path: string[]): boolean {
+export function personMatchesDeptPath(person: DeptPathRecord, path: string[]): boolean {
   for (let i = 0; i < path.length; i++) {
-    const name = person[`dept_l${i + 1}_name` as keyof PersonnelItem] as string | null
+    const name = person[`dept_l${i + 1}_name` as keyof DeptPathRecord] as string | null
     if (name !== path[i]) return false
   }
   return true
 }
 
+export function filterByDeptPath<T extends DeptPathRecord>(records: T[], path: string[]): T[] {
+  if (path.length === 0) return records
+  return records.filter((item) => personMatchesDeptPath(item, path))
+}
+
 export function filterPersonnelByDeptPath(personnel: PersonnelItem[], path: string[]): PersonnelItem[] {
-  if (path.length === 0) return personnel
-  return personnel.filter((p) => personMatchesDeptPath(p, path))
+  return filterByDeptPath(personnel, path)
 }
 
 export function computePermissionSummary(

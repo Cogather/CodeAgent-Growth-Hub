@@ -143,3 +143,7 @@ class UsageStatImportResponse(BaseModel):
 
 class UsageExportExceptionsRequest(BaseModel):
     failures: List[UsageImportFailureItem]
+
+
+class UsageExportZeroUsageRequest(BaseModel):
+    dept_path: List[str] = Field(default_factory=list, description="部门路径，空表示全部有权限人员")

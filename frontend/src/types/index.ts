@@ -31,15 +31,6 @@ export interface ConfigItem {
   updatedBy: string
 }
 
-export interface AuditLogEntry {
-  id: string
-  module: string
-  action: string
-  target: string
-  operator: string
-  createdAt: string
-}
-
 export interface DepartmentNode {
   id: number
   parent_id: number | null

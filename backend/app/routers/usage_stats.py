@@ -10,15 +10,18 @@ from app.database import get_db
 from app.models import DEPT_LEVELS, MetaPersonnel, StatUsage
 from app.schemas import (
     UsageExportExceptionsRequest,
+    UsageExportZeroUsageRequest,
     UsageImportFailureItem,
     UsageStatImportResponse,
     UsageStatItem,
     UsageStatListResponse,
 )
+from app.services.dept_utils import person_matches_dept_path
 from app.services.hr_lookup import display_emp_no
 from app.services.usage_excel import (
     build_usage_import_failures_excel,
     build_usage_template_excel,
+    build_zero_usage_excel,
     parse_usage_excel,
 )
 from app.services.usage_roster import list_authorized_personnel
@@ -147,4 +150,23 @@ def export_usage_import_exceptions(payload: UsageExportExceptionsRequest):
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="usage_import_exceptions.xlsx"'},
+    )
+
+
+@router.post("/export-zero-usage")
+def export_zero_usage_personnel(payload: UsageExportZeroUsageRequest, db: Session = Depends(get_db)):
+    items = _build_merged_items(db)
+    zero_items = [item for item in items if item.usage_count == 0]
+
+    if payload.dept_path:
+        zero_items = [item for item in zero_items if person_matches_dept_path(item, payload.dept_path)]
+
+    if not zero_items:
+        raise HTTPException(status_code=400, detail="当前范围内没有使用次数为 0 的人员")
+
+    data = build_zero_usage_excel([item.model_dump() for item in zero_items])
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="usage_zero_users.xlsx"'},
     )

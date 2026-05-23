@@ -15,14 +15,6 @@ export const APP_MODULES: AppModule[] = [
     status: 'ready'
   },
   {
-    key: 'audit',
-    title: '变更记录',
-    description: '查看各模块的历史修改记录与操作审计',
-    path: '/audit',
-    icon: 'Document',
-    status: 'planned'
-  },
-  {
     key: 'usage',
     title: '使用统计',
     description: '用户使用 CodeAgent 的数据晾晒与统计分析',

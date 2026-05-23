@@ -20,12 +20,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '配置中心', icon: 'Setting', module: 'config' }
       },
       {
-        path: '/audit',
-        name: 'Audit',
-        component: () => import('@/views/audit/index.vue'),
-        meta: { title: '变更记录', icon: 'Document', module: 'audit' }
-      },
-      {
         path: '/usage',
         name: 'Usage',
         component: () => import('@/views/usage/index.vue'),

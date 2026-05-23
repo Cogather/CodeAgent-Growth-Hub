@@ -1,84 +1,101 @@
 <template>
   <div class="usage-page">
-    <el-card shadow="never" class="toolbar-card">
-      <div class="toolbar">
-        <el-button type="primary" :loading="store.loading" @click="importDialogVisible = true">
-          <el-icon><Upload /></el-icon>
-          导入 Excel
-        </el-button>
-        <el-button :loading="store.loading" @click="store.downloadTemplate()">
-          <el-icon><Download /></el-icon>
-          下载模板
-        </el-button>
-        <el-button :loading="store.loading" @click="store.fetchList()">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
-        <el-button @click="clearTableFilters">清除筛选</el-button>
-      </div>
-      <p class="toolbar-hint">
-        展示黄/蓝/绿区白名单并集中的全部有权限人员，使用次数来自 Excel 导入并与名单合并呈现；未导入或导入中无记录的人员显示为 0。数据仅可通过 Excel 导入刷新，不支持在线编辑或删除。
-        <span v-if="store.importedAt" class="imported-at">最近导入：{{ store.importedAt }}</span>
-      </p>
-    </el-card>
+    <el-tabs v-model="activeTab" class="usage-tabs" @tab-change="handleTabChange">
+      <el-tab-pane label="使用数据" name="data">
+        <el-card shadow="never" class="toolbar-card">
+          <div class="toolbar">
+            <el-button type="primary" :loading="store.loading" @click="importDialogVisible = true">
+              <el-icon><Upload /></el-icon>
+              导入 Excel
+            </el-button>
+            <el-button :loading="store.loading" @click="store.downloadTemplate()">
+              <el-icon><Download /></el-icon>
+              下载模板
+            </el-button>
+            <el-button :loading="store.loading" @click="store.fetchList()">
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+            <el-button @click="clearTableFilters">清除筛选</el-button>
+          </div>
+          <p class="toolbar-hint">
+            展示黄/蓝/绿区白名单并集中的全部有权限人员，使用次数来自 Excel 导入并与名单合并呈现；未导入或导入中无记录的人员显示为 0。数据仅可通过 Excel 导入刷新，不支持在线编辑或删除。
+            <span v-if="store.importedAt" class="imported-at">最近导入：{{ store.importedAt }}</span>
+          </p>
+        </el-card>
 
-    <el-card shadow="never" v-loading="store.loading">
-      <el-table
-        ref="tableRef"
-        :data="store.items"
-        stripe
-        empty-text="暂无有权限人员，请先在配置中心录入人员并配置网络区域权限"
-        max-height="560"
-        :default-sort="{ prop: 'usage_count', order: 'descending' }"
-      >
-        <el-table-column
-          prop="display_emp_no"
-          label="工号"
-          column-key="display_emp_no"
-          :filters="displayEmpNoFilters"
-          :filter-method="filterByField('display_emp_no')"
-          filter-placement="bottom-end"
-          min-width="120"
-          fixed="left"
-        />
-        <el-table-column
-          prop="name"
-          label="姓名"
-          column-key="name"
-          :filters="nameFilters"
-          :filter-method="filterByField('name')"
-          filter-placement="bottom-end"
-          min-width="110"
-          fixed="left"
-        />
-        <el-table-column
-          prop="usage_count"
-          label="使用次数"
-          sortable
-          min-width="120"
-          align="right"
-        >
-          <template #default="{ row }">
-            <span :class="{ 'usage-zero': row.usage_count === 0 }">{{ row.usage_count }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          v-for="level in DEPT_LEVELS"
-          :key="level"
-          :prop="`dept_l${level}_name`"
-          :label="`${level}级部门`"
-          :column-key="`dept_l${level}_name`"
-          :filters="deptFilters[level - 1]"
-          :filter-method="filterByField(`dept_l${level}_name` as keyof UsageStatItem)"
-          filter-placement="bottom-end"
-          min-width="130"
-        >
-          <template #default="{ row }">
-            {{ row[`dept_l${level}_name` as keyof UsageStatItem] || '—' }}
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+        <el-card shadow="never" v-loading="store.loading">
+          <el-table
+            ref="tableRef"
+            :data="store.items"
+            stripe
+            empty-text="暂无有权限人员，请先在配置中心录入人员并配置网络区域权限"
+            max-height="560"
+            :default-sort="{ prop: 'usage_count', order: 'descending' }"
+          >
+            <el-table-column
+              prop="display_emp_no"
+              label="工号"
+              column-key="display_emp_no"
+              :filters="displayEmpNoFilters"
+              :filter-method="filterByField('display_emp_no')"
+              filter-placement="bottom-end"
+              min-width="120"
+              fixed="left"
+            />
+            <el-table-column
+              prop="name"
+              label="姓名"
+              column-key="name"
+              :filters="nameFilters"
+              :filter-method="filterByField('name')"
+              filter-placement="bottom-end"
+              min-width="110"
+              fixed="left"
+            />
+            <el-table-column
+              prop="usage_count"
+              label="使用次数"
+              sortable
+              min-width="120"
+              align="right"
+            >
+              <template #default="{ row }">
+                <span :class="{ 'usage-zero': row.usage_count === 0 }">{{ row.usage_count }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              v-for="level in DEPT_LEVELS"
+              :key="level"
+              :prop="`dept_l${level}_name`"
+              :label="`${level}级部门`"
+              :column-key="`dept_l${level}_name`"
+              :filters="deptFilters[level - 1]"
+              :filter-method="filterByField(`dept_l${level}_name` as keyof UsageStatItem)"
+              filter-placement="bottom-end"
+              min-width="130"
+            >
+              <template #default="{ row }">
+                {{ row[`dept_l${level}_name` as keyof UsageStatItem] || '—' }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane label="使用分布" name="charts" lazy>
+        <p class="charts-hint">基于「使用数据」中的导入结果统计，切换部门查看有使用与未使用人员分布</p>
+        <el-card shadow="never">
+          <UsageStatsCharts
+            v-if="activeTab === 'charts'"
+            ref="chartsRef"
+            :items="store.items"
+            :loading="store.loading"
+            @export-zero-usage="handleExportZeroUsage"
+          />
+        </el-card>
+      </el-tab-pane>
+    </el-tabs>
 
     <el-dialog v-model="importDialogVisible" title="导入使用统计 Excel" width="480px" destroy-on-close @closed="resetImport">
       <el-upload
@@ -107,18 +124,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { ElMessage, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { ElMessage, type TabPaneName, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
 import { useUsageStatsStore } from '@/stores/usageStats'
 import { DEPT_LEVELS, type UsageStatItem } from '@/types'
+
+const UsageStatsCharts = defineAsyncComponent(() => import('./components/UsageStatsCharts.vue'))
 
 type FilterOption = { text: string; value: string }
 
 const store = useUsageStatsStore()
 const tableRef = ref<TableInstance>()
+const chartsRef = ref<{ refreshCharts: () => void }>()
 const uploadRef = ref<UploadInstance>()
 const importDialogVisible = ref(false)
 const selectedFile = ref<File | null>(null)
+const activeTab = ref('data')
 
 const buildFilters = (items: UsageStatItem[], field: keyof UsageStatItem): FilterOption[] => {
   const values = new Set<string>()
@@ -149,6 +170,21 @@ const filterByField = (field: keyof UsageStatItem) => {
 
 const clearTableFilters = () => {
   tableRef.value?.clearFilter()
+}
+
+const handleTabChange = (name: TabPaneName) => {
+  if (name === 'charts') {
+    chartsRef.value?.refreshCharts()
+  }
+}
+
+const handleExportZeroUsage = async (deptPath: string[]) => {
+  try {
+    await store.exportZeroUsage(deptPath)
+    ElMessage.success('未使用人员已导出')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '导出失败')
+  }
 }
 
 const resetImport = () => {
@@ -218,6 +254,17 @@ onMounted(() => {
 .imported-at {
   margin-left: 12px;
   color: #6b7280;
+}
+
+.usage-tabs :deep(.el-tabs__header) {
+  margin-bottom: 16px;
+}
+
+.charts-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.5;
 }
 
 .form-hint {

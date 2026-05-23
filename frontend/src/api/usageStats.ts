@@ -62,5 +62,12 @@ export const usageStatsApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ failures })
+    }),
+
+  exportZeroUsage: (deptPath: string[] = []) =>
+    downloadBlob('/usage-stats/export-zero-usage', `usage_zero_users_${new Date().toISOString().slice(0, 10)}.xlsx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dept_path: deptPath })
     })
 }

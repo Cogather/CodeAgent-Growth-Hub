@@ -38,6 +38,10 @@ export const useUsageStatsStore = defineStore('usageStats', () => {
     await usageStatsApi.exportExceptions(failures)
   }
 
+  async function exportZeroUsage(deptPath: string[] = []) {
+    await usageStatsApi.exportZeroUsage(deptPath)
+  }
+
   return {
     items,
     importedAt,
@@ -45,6 +49,7 @@ export const useUsageStatsStore = defineStore('usageStats', () => {
     fetchList,
     importExcel,
     downloadTemplate,
-    exportExceptions
+    exportExceptions,
+    exportZeroUsage
   }
 })

@@ -54,5 +54,13 @@ def find_dept_by_path(db: Session, path_names: list[str]) -> MetaDepartment | No
     return current
 
 
+def person_matches_dept_path(record: object, path_names: list[str]) -> bool:
+    """记录的一级至 N 级部门名称是否与给定路径完全匹配"""
+    for i, name in enumerate(path_names, start=1):
+        if getattr(record, f"dept_l{i}_name", None) != name:
+            return False
+    return True
+
+
 def list_all_departments(db: Session) -> list[MetaDepartment]:
     return db.query(MetaDepartment).order_by(MetaDepartment.id).all()

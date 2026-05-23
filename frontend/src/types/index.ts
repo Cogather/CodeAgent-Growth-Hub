@@ -1,179 +1,144 @@
+export type UserRole = 'admin' | 'operator' | 'viewer'
+
 export interface User {
   id: number
   username: string
   name: string
   department: string
-  role: 'user' | 'admin'
+  role: UserRole
 }
 
-export interface Department {
-  id: number
-  name: string
-  parentId: number | null
-  children?: Department[]
-}
+export type ModuleStatus = 'ready' | 'developing' | 'planned'
 
-export type ZoneType = 'yellow' | 'blue' | 'green'
-
-export type RequestStatus = 'pending' | 'processing' | 'completed' | 'rejected'
-
-export interface AccessRequest {
-  id: number
-  requestNo: string
-  zone: ZoneType
-  tool: string
-  model: string
-  status: RequestStatus
-  submitter: string
-  submitterName: string
-  createdAt: string
-  updatedAt: string
-  processor?: string
-  remark?: string
-  accounts: AccessRequestAccount[]
-}
-
-export interface AccessRequestAccount {
-  id: number
-  requestId: number
-  username: string
-  status: RequestStatus
-}
-
-export interface UsageStats {
-  id: number
-  username: string
-  name: string
-  department: string
-  zone: ZoneType
-  tool: string
-  callCount: number
-  activeDays: number
-  isDeepUser: boolean
-  date: string
-}
-
-export type TicketStatus = 'pending' | 'processing' | 'resolved' | 'closed'
-export type TicketCategory = 'bug' | 'feature' | 'question' | 'optimization'
-
-export interface Ticket {
-  id: number
-  ticketNo: string
+export interface AppModule {
+  key: string
   title: string
-  category: TicketCategory
-  status: TicketStatus
-  submitter: string
-  submitterName: string
-  processor: string
-  processorName: string
-  department: string
-  link: string
-  createdAt: string
-  updatedAt: string
-}
-
-export type ArtifactCategory = 'skill' | 'mcp' | 'bestpractice'
-
-export interface Artifact {
-  id: number
-  name: string
   description: string
-  link: string
-  publisher: string
-  publisherName: string
-  publisherDept: string
-  category: ArtifactCategory
-  createdAt: string
+  path: string
+  icon: string
+  owner?: string
+  status: ModuleStatus
 }
 
-export type DeepUserRule = {
-  callCountThreshold: number
-  activeDaysThreshold: number
-  daysWindow: number
-}
-
-export interface AuditLog {
-  id: number
-  action: string
-  operator: string
-  operatorName: string
-  target: string
-  detail: string
-  createdAt: string
-}
-
-export interface DictItem {
-  id: number
-  type: string
+export interface ConfigItem {
+  id: string
+  key: string
   label: string
   value: string
-  sort: number
-}
-
-export interface OrganizationUnit {
-  id: number
-  name: string
-  type: 'pdu' | 'devDept' | 'fse' | 'testField'
-  parentId: number | null
-  pduContact?: string
-  devContact?: string
-  owner?: string
-  responsible?: string
-  createdAt: string
+  category: string
+  description: string
   updatedAt: string
+  updatedBy: string
 }
 
-export interface FSE {
-  id: number
-  name: string
-  pduId: number
-  pduName: string
+export interface AuditLogEntry {
+  id: string
+  module: string
+  action: string
+  target: string
+  operator: string
   createdAt: string
-  updatedAt: string
 }
 
-export interface Personnel {
+export interface DepartmentNode {
   id: number
-  employeeNo: string
+  parent_id: number | null
   name: string
-  pduId?: number
-  pduName?: string
-  devDeptId?: number
-  devDeptName?: string
-  testFieldId?: number
-  testFieldName?: string
-  pduContact?: string
-  devContact?: string
-  fse?: string
-  zones: PersonnelZone[]
-  createdAt: string
-  updatedAt: string
+  children: DepartmentNode[]
 }
 
-export interface PersonnelZone {
-  zone: ZoneType
-  modelPermission: string
-  toolPermission: string
-  batchDate: string
+export interface RootStatus {
+  has_root: boolean
 }
 
-export interface DailyUsage {
-  id: number
-  personnelId: number
-  employeeNo: string
+export interface PersonnelItem {
+  emp_no: string
+  display_emp_no: string
   name: string
-  date: string
-  callCount: number
-  usedCodeAgent: boolean
+  dept_l1_name: string | null
+  dept_l1_code: string | null
+  dept_l2_name: string | null
+  dept_l2_code: string | null
+  dept_l3_name: string | null
+  dept_l3_code: string | null
+  dept_l4_name: string | null
+  dept_l4_code: string | null
+  dept_l5_name: string | null
+  dept_l5_code: string | null
+  dept_l6_name: string | null
+  dept_l6_code: string | null
+  dept_l7_name: string | null
+  dept_l7_code: string | null
 }
 
-export interface UsageSummary {
-  totalPersonnel: number
-  hasPermissionCount: number
-  usedCount: number
-  topUserCount: number
-  seniorUserCount: number
-  byPdu: { pduName: string; total: number; hasPermission: number; used: number; top: number; senior: number }[]
-  byDevDept: { devDeptName: string; total: number; hasPermission: number; used: number; top: number; senior: number }[]
-  byTestField: { testFieldName: string; total: number; hasPermission: number; used: number; top: number; senior: number }[]
+export interface PersonnelListResponse {
+  items: PersonnelItem[]
+}
+
+export interface ImportFailureItem {
+  emp_no: string
+  name?: string | null
+  hr_dept_path?: string[] | null
+  reason: string
+}
+
+export interface PersonnelBatchImportResponse {
+  imported_count: number
+  failures: ImportFailureItem[]
+}
+
+export type PersonnelUpdatePayload = Pick<
+  PersonnelItem,
+  | 'name'
+  | 'dept_l1_name'
+  | 'dept_l1_code'
+  | 'dept_l2_name'
+  | 'dept_l2_code'
+  | 'dept_l3_name'
+  | 'dept_l3_code'
+  | 'dept_l4_name'
+  | 'dept_l4_code'
+  | 'dept_l5_name'
+  | 'dept_l5_code'
+  | 'dept_l6_name'
+  | 'dept_l6_code'
+  | 'dept_l7_name'
+  | 'dept_l7_code'
+>
+
+export const DEPT_LEVELS = 7
+
+export type NetworkZone = 'yellow' | 'blue' | 'green'
+
+export interface ZonePermissionItem {
+  emp_no: string
+  display_emp_no: string
+  name: string
+  models: string[]
+}
+
+export interface ZonePermissionListResponse {
+  zone: NetworkZone
+  zone_label: string
+  items: ZonePermissionItem[]
+}
+
+export interface ZoneImportFailureItem {
+  emp_no: string
+  reason: string
+}
+
+export interface ZonePermissionBatchResponse {
+  upserted_count: number
+  failures: ZoneImportFailureItem[]
+}
+
+export interface ZonePermissionUpdatePayload {
+  models_text: string
+}
+
+export const ZONE_META: Record<NetworkZone, { label: string; description: string }> = {
+  yellow: { label: '黄区', description: '黄区人员白名单与模型权限' },
+  blue: { label: '蓝区', description: '蓝区人员白名单与模型权限' },
+  green: { label: '绿区', description: '绿区人员白名单与模型权限' }
 }

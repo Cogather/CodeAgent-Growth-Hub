@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { User } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -7,15 +7,14 @@ export const useAuthStore = defineStore('auth', () => {
     id: 1,
     username: 'admin',
     name: '管理员',
-    department: '研发部',
+    department: '运营组',
     role: 'admin'
   })
 
-  const isAdmin = ref(true)
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   const setUser = (newUser: User | null) => {
     user.value = newUser
-    isAdmin.value = newUser?.role === 'admin'
   }
 
   return {

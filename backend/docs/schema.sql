@@ -1,0 +1,2 @@
+-- 表结构请参考 schema.mysql.sql（MySQL）
+-- 本文件保留作 SQLite 历史参考，当前默认使用 MySQL

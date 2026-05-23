@@ -116,3 +116,30 @@ class ZonePermissionBatchResponse(BaseModel):
 
 class ZonePermissionUpdate(BaseModel):
     models_text: str = Field(..., min_length=1, description="模型，逗号分隔")
+
+
+class UsageStatItem(PersonnelDeptFields):
+    emp_no: str
+    display_emp_no: str
+    name: str
+    usage_count: int = 0
+
+
+class UsageStatListResponse(BaseModel):
+    items: List[UsageStatItem]
+    imported_at: Optional[str] = None
+
+
+class UsageImportFailureItem(BaseModel):
+    emp_no: str
+    usage_count: Optional[int] = None
+    reason: str
+
+
+class UsageStatImportResponse(BaseModel):
+    imported_count: int
+    failures: List[UsageImportFailureItem]
+
+
+class UsageExportExceptionsRequest(BaseModel):
+    failures: List[UsageImportFailureItem]

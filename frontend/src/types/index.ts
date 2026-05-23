@@ -137,6 +137,45 @@ export interface ZonePermissionUpdatePayload {
   models_text: string
 }
 
+export interface UsageStatItem extends Pick<
+  PersonnelItem,
+  | 'emp_no'
+  | 'display_emp_no'
+  | 'name'
+  | 'dept_l1_name'
+  | 'dept_l1_code'
+  | 'dept_l2_name'
+  | 'dept_l2_code'
+  | 'dept_l3_name'
+  | 'dept_l3_code'
+  | 'dept_l4_name'
+  | 'dept_l4_code'
+  | 'dept_l5_name'
+  | 'dept_l5_code'
+  | 'dept_l6_name'
+  | 'dept_l6_code'
+  | 'dept_l7_name'
+  | 'dept_l7_code'
+> {
+  usage_count: number
+}
+
+export interface UsageStatListResponse {
+  items: UsageStatItem[]
+  imported_at: string | null
+}
+
+export interface UsageImportFailureItem {
+  emp_no: string
+  usage_count: number | null
+  reason: string
+}
+
+export interface UsageStatImportResponse {
+  imported_count: number
+  failures: UsageImportFailureItem[]
+}
+
 export const ZONE_META: Record<NetworkZone, { label: string; description: string }> = {
   yellow: { label: '黄区', description: '黄区人员白名单与模型权限' },
   blue: { label: '蓝区', description: '蓝区人员白名单与模型权限' },

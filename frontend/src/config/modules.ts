@@ -28,7 +28,7 @@ export const APP_MODULES: AppModule[] = [
     description: '用户使用 CodeAgent 的数据晾晒与统计分析',
     path: '/usage',
     icon: 'DataLine',
-    status: 'planned'
+    status: 'ready'
   },
   {
     key: 'issues',

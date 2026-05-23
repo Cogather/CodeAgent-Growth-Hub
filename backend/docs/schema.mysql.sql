@@ -49,3 +49,9 @@ CREATE TABLE IF NOT EXISTS perm_zone_green (
     emp_no      VARCHAR(64) PRIMARY KEY,
     models      VARCHAR(512) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS stat_usage (
+    emp_no          VARCHAR(64) PRIMARY KEY,
+    usage_count     INT NOT NULL DEFAULT 0,
+    imported_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

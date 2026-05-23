@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -73,4 +74,14 @@ class PermZoneBlue(Base, _PermZoneMixin):
 
 class PermZoneGreen(Base, _PermZoneMixin):
     __tablename__ = "perm_zone_green"
+
+
+class StatUsage(Base):
+    """使用统计 — 工号与使用次数，仅通过 Excel 导入刷新"""
+
+    __tablename__ = "stat_usage"
+
+    emp_no: Mapped[str] = mapped_column(String(64), primary_key=True)
+    usage_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    imported_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
 

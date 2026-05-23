@@ -10,6 +10,10 @@
           <el-icon><Refresh /></el-icon>
           刷新
         </el-button>
+        <el-button @click="statsDialogVisible = true">
+          <el-icon><PieChart /></el-icon>
+          权限统计图
+        </el-button>
       </div>
       <p class="toolbar-hint">{{ zoneDescription }}</p>
     </el-card>
@@ -72,14 +76,23 @@
         <el-button type="primary" :loading="loading" @click="handleSaveEdit">保存</el-button>
       </template>
     </el-dialog>
+
+    <ZonePermissionStatsDialog
+      v-model="statsDialogVisible"
+      :zone="zone"
+      :permitted-emp-nos="permittedEmpNos"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { PieChart } from '@element-plus/icons-vue'
 import { zonePermissionApi } from '@/api/zonePermission'
 import { ZONE_META, type NetworkZone, type ZonePermissionItem } from '@/types'
+
+const ZonePermissionStatsDialog = defineAsyncComponent(() => import('./ZonePermissionStatsDialog.vue'))
 
 const props = defineProps<{ zone: NetworkZone }>()
 
@@ -88,12 +101,14 @@ const items = ref<ZonePermissionItem[]>([])
 const modelHint = ref('')
 const batchDialogVisible = ref(false)
 const editDialogVisible = ref(false)
+const statsDialogVisible = ref(false)
 const editingRow = ref<ZonePermissionItem | null>(null)
 
 const batchForm = reactive({ empNos: '', models: '' })
 const editForm = reactive({ models: '' })
 
 const zoneDescription = computed(() => ZONE_META[props.zone].description)
+const permittedEmpNos = computed(() => items.value.map((item) => item.emp_no))
 
 const MODEL_HINTS: Record<NetworkZone, string> = {
   yellow: '如：gpt-4o-mini, claude-3-haiku',

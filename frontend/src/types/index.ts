@@ -79,8 +79,8 @@ export interface ConfigItem {
 }
 
 export interface DepartmentNode {
-  id: number
-  parent_id: number | null
+  dept_code: string
+  parent_dept_code: string | null
   name: string
   children: DepartmentNode[]
 }

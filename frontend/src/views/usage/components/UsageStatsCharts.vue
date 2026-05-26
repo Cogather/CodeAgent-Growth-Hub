@@ -8,7 +8,7 @@
         ref="treeRef"
         :data="deptTree"
         :props="{ label: 'name', children: 'children' }"
-        node-key="id"
+        node-key="dept_code"
         highlight-current
         default-expand-all
         :expand-on-click-node="false"
@@ -104,7 +104,7 @@ const emit = defineEmits<{ exportZeroUsage: [deptPath: string[]] }>()
 const deptLoading = ref(false)
 const exporting = ref(false)
 const deptTree = ref<DepartmentNode[]>([])
-const selectedDeptId = ref<number | null>(null)
+const selectedDeptCode = ref<string | null>(null)
 const treeRef = ref<InstanceType<typeof ElTree>>()
 const pieChartRef = ref<HTMLElement>()
 const barChartRef = ref<HTMLElement>()
@@ -112,8 +112,8 @@ const pieChart = shallowRef<echarts.ECharts>()
 const barChart = shallowRef<echarts.ECharts>()
 
 const selectedPath = computed(() => {
-  if (selectedDeptId.value === null || deptTree.value.length === 0) return [] as string[]
-  return findDeptPath(deptTree.value, selectedDeptId.value) ?? []
+  if (selectedDeptCode.value === null || deptTree.value.length === 0) return [] as string[]
+  return findDeptPath(deptTree.value, selectedDeptCode.value) ?? []
 })
 
 const scopeLabel = computed(() => {
@@ -128,8 +128,8 @@ const scopedItems = computed(() => filterByDeptPath(props.items, selectedPath.va
 const summary = computed(() => computeUsageSummary(scopedItems.value))
 
 const selectedNode = computed(() => {
-  if (selectedDeptId.value === null) return null
-  return findDeptNode(deptTree.value, selectedDeptId.value)
+  if (selectedDeptCode.value === null) return null
+  return findDeptNode(deptTree.value, selectedDeptCode.value)
 })
 
 const childStats = computed<ChildDeptStats[]>(() => {
@@ -225,12 +225,12 @@ const renderCharts = async () => {
 const selectDefaultNode = async () => {
   await nextTick()
   if (deptTree.value.length === 0) {
-    selectedDeptId.value = null
+    selectedDeptCode.value = null
     return
   }
-  const rootId = deptTree.value[0].id
-  selectedDeptId.value = rootId
-  treeRef.value?.setCurrentKey(rootId)
+  const rootCode = deptTree.value[0].dept_code
+  selectedDeptCode.value = rootCode
+  treeRef.value?.setCurrentKey(rootCode)
 }
 
 const loadDeptTree = async () => {
@@ -245,7 +245,7 @@ const loadDeptTree = async () => {
 }
 
 const handleNodeClick = (node: DepartmentNode) => {
-  selectedDeptId.value = node.id
+  selectedDeptCode.value = node.dept_code
 }
 
 const handleExport = () => {

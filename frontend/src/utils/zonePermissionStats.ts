@@ -25,23 +25,30 @@ export interface ChildDeptStats {
   total: number
 }
 
-export function findDeptPath(nodes: DepartmentNode[], targetId: number, acc: string[] = []): string[] | null {
+export function findDeptPath(
+  nodes: DepartmentNode[],
+  targetDeptCode: string,
+  acc: string[] = []
+): string[] | null {
   for (const node of nodes) {
     const path = [...acc, node.name]
-    if (node.id === targetId) return path
+    if (node.dept_code === targetDeptCode) return path
     if (node.children?.length) {
-      const found = findDeptPath(node.children, targetId, path)
+      const found = findDeptPath(node.children, targetDeptCode, path)
       if (found) return found
     }
   }
   return null
 }
 
-export function findDeptNode(nodes: DepartmentNode[], targetId: number): DepartmentNode | null {
+export function findDeptNode(
+  nodes: DepartmentNode[],
+  targetDeptCode: string
+): DepartmentNode | null {
   for (const node of nodes) {
-    if (node.id === targetId) return node
+    if (node.dept_code === targetDeptCode) return node
     if (node.children?.length) {
-      const found = findDeptNode(node.children, targetId)
+      const found = findDeptNode(node.children, targetDeptCode)
       if (found) return found
     }
   }

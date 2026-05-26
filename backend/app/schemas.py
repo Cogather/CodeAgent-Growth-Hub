@@ -8,8 +8,9 @@ from app.models import DEPT_LEVELS
 
 
 class DepartmentCreate(BaseModel):
+    dept_code: str = Field(..., min_length=1, max_length=64)
     name: str = Field(..., min_length=1, max_length=128)
-    parent_id: Optional[int] = None
+    parent_dept_code: Optional[str] = None
 
 
 class DepartmentUpdate(BaseModel):
@@ -17,15 +18,15 @@ class DepartmentUpdate(BaseModel):
 
 
 class DepartmentNode(BaseModel):
-    id: int
-    parent_id: Optional[int]
+    dept_code: str
+    parent_dept_code: Optional[str]
     name: str
     children: List["DepartmentNode"] = []
 
 
 class DepartmentFlat(BaseModel):
-    id: int
-    parent_id: Optional[int]
+    dept_code: str
+    parent_dept_code: Optional[str]
     name: str
 
     model_config = {"from_attributes": True}

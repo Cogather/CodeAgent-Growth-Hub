@@ -22,22 +22,37 @@ export const useDepartmentStore = defineStore('department', () => {
     }
   }
 
-  const createDepartment = async (parentId: number | null, name: string) => {
+  const createDepartment = async (
+    parentDeptCode: string | null,
+    deptCode: string,
+    name: string
+  ) => {
     loading.value = true
     try {
-      await departmentApi.create({ parent_id: parentId, name })
+      await departmentApi.create({
+        dept_code: deptCode,
+        parent_dept_code: parentDeptCode,
+        name
+      })
       await fetchTree()
     } finally {
       loading.value = false
     }
   }
 
-  const createDepartmentsBatch = async (parentId: number, names: string[]) => {
-    if (names.length === 0) return
+  const createDepartmentsBatch = async (
+    parentDeptCode: string,
+    items: { name: string; dept_code: string }[]
+  ) => {
+    if (items.length === 0) return
     loading.value = true
     try {
-      for (const name of names) {
-        await departmentApi.create({ parent_id: parentId, name })
+      for (const item of items) {
+        await departmentApi.create({
+          dept_code: item.dept_code,
+          parent_dept_code: parentDeptCode,
+          name: item.name
+        })
       }
       await fetchTree()
     } finally {
@@ -45,20 +60,20 @@ export const useDepartmentStore = defineStore('department', () => {
     }
   }
 
-  const updateDepartment = async (id: number, name: string) => {
+  const updateDepartment = async (deptCode: string, name: string) => {
     loading.value = true
     try {
-      await departmentApi.update(id, { name })
+      await departmentApi.update(deptCode, { name })
       await fetchTree()
     } finally {
       loading.value = false
     }
   }
 
-  const deleteDepartment = async (id: number) => {
+  const deleteDepartment = async (deptCode: string) => {
     loading.value = true
     try {
-      await departmentApi.remove(id)
+      await departmentApi.remove(deptCode)
       await fetchTree()
     } finally {
       loading.value = false

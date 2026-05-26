@@ -17,7 +17,7 @@
             刷新
           </el-button>
         </div>
-        <span class="toolbar-hint">全局仅一个根节点，其下逐级添加子部门</span>
+        <span class="toolbar-hint">全局仅一个根节点，其下逐级添加子部门；部门编码为唯一标识</span>
       </div>
     </el-card>
 
@@ -34,7 +34,7 @@
         v-else
         :data="deptStore.tree"
         :props="{ label: 'name', children: 'children' }"
-        node-key="id"
+        node-key="dept_code"
         default-expand-all
         :expand-on-click-node="false"
       >
@@ -42,10 +42,13 @@
           <div class="tree-node">
             <span class="node-label">
               {{ node.label }}
-              <el-tag v-if="data.parent_id === null" size="small" type="warning" effect="plain">根</el-tag>
+              <el-tag size="small" type="info" effect="plain">{{ data.dept_code }}</el-tag>
+              <el-tag v-if="data.parent_dept_code === null" size="small" type="warning" effect="plain">根</el-tag>
             </span>
             <span class="node-actions" @click.stop>
-              <el-button type="primary" link size="small" @click="openCreate(data.id)">添加子部门</el-button>
+              <el-button type="primary" link size="small" @click="openCreate(data.dept_code)">
+                添加子部门
+              </el-button>
               <el-button type="primary" link size="small" @click="openEdit(data)">重命名</el-button>
               <el-button
                 type="danger"
@@ -62,30 +65,58 @@
       </el-tree>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="440px" destroy-on-close @closed="formName = ''">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="480px"
+      destroy-on-close
+      @closed="resetForm"
+    >
       <el-form @submit.prevent="handleSubmit">
-        <el-form-item label="部门名称" required>
-          <el-input
-            v-if="!isBatchCreate"
-            v-model="formName"
-            placeholder="请输入部门名称"
-            maxlength="128"
-            autofocus
-          />
-          <el-input
-            v-else
-            v-model="formName"
-            type="textarea"
-            :rows="3"
-            placeholder="多个部门用逗号分隔，如：研发部, 产品部, 测试部"
-            autofocus
-          />
-        </el-form-item>
-        <p v-if="isBatchCreate" class="form-hint">支持中英文逗号分隔，将一次性创建多个同级子部门</p>
+        <template v-if="dialogMode === 'create'">
+          <el-form-item v-if="!isBatchCreate" label="部门编码" required>
+            <el-input
+              v-model="formDeptCode"
+              placeholder="唯一编码，如 ICT-BG"
+              maxlength="64"
+              autofocus
+            />
+          </el-form-item>
+          <el-form-item :label="isBatchCreate ? '子部门列表' : '部门名称'" required>
+            <el-input
+              v-if="!isBatchCreate"
+              v-model="formName"
+              placeholder="请输入部门名称"
+              maxlength="128"
+            />
+            <el-input
+              v-else
+              v-model="formName"
+              type="textarea"
+              :rows="4"
+              placeholder="每行一条：部门名称,部门编码&#10;如：研发部,RD01"
+              autofocus
+            />
+          </el-form-item>
+          <p v-if="isBatchCreate" class="form-hint">每行格式：名称,编码（支持中英文逗号分隔名称与编码）</p>
+        </template>
+        <template v-else>
+          <el-form-item label="部门编码">
+            <el-input :model-value="editingDeptCode ?? ''" disabled />
+          </el-form-item>
+          <el-form-item label="部门名称" required>
+            <el-input v-model="formName" placeholder="请输入部门名称" maxlength="128" autofocus />
+          </el-form-item>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="deptStore.loading" :disabled="!formName.trim()" @click="handleSubmit">
+        <el-button
+          type="primary"
+          :loading="deptStore.loading"
+          :disabled="!canSubmit"
+          @click="handleSubmit"
+        >
           确定
         </el-button>
       </template>
@@ -104,69 +135,87 @@ const authStore = useAuthStore()
 const deptStore = useDepartmentStore()
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
-const parentId = ref<number | null>(null)
-const editingId = ref<number | null>(null)
+const parentDeptCode = ref<string | null>(null)
+const editingDeptCode = ref<string | null>(null)
 const formName = ref('')
+const formDeptCode = ref('')
 
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'edit') return '重命名部门'
-  return parentId.value === null ? '创建根部门' : '添加子部门'
+  return parentDeptCode.value === null ? '创建根部门' : '添加子部门'
 })
 
 const isBatchCreate = computed(
-  () => dialogMode.value === 'create' && parentId.value !== null
+  () => dialogMode.value === 'create' && parentDeptCode.value !== null
 )
 
-/** 按逗号切割，去空白、去重 */
-const parseNames = (input: string): string[] => {
+const canSubmit = computed(() => {
+  if (dialogMode.value === 'edit') return formName.value.trim().length > 0
+  if (isBatchCreate.value) return parseBatchItems(formName.value).length > 0
+  return formName.value.trim().length > 0 && formDeptCode.value.trim().length > 0
+})
+
+/** 批量：每行 名称,编码 */
+const parseBatchItems = (input: string): { name: string; dept_code: string }[] => {
   const seen = new Set<string>()
-  const result: string[] = []
-  for (const part of input.split(/[,，]/)) {
-    const name = part.trim()
-    if (name && !seen.has(name)) {
-      seen.add(name)
-      result.push(name)
-    }
+  const result: { name: string; dept_code: string }[] = []
+  for (const line of input.split(/\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const parts = trimmed.split(/[,，]/)
+    if (parts.length < 2) continue
+    const name = parts[0].trim()
+    const dept_code = parts.slice(1).join(',').trim()
+    if (!name || !dept_code || seen.has(dept_code)) continue
+    seen.add(dept_code)
+    result.push({ name, dept_code })
   }
   return result
+}
+
+const resetForm = () => {
+  formName.value = ''
+  formDeptCode.value = ''
 }
 
 onMounted(() => {
   deptStore.fetchTree()
 })
 
-const openCreate = (pid: number | null) => {
+const openCreate = (parentCode: string | null) => {
   dialogMode.value = 'create'
-  parentId.value = pid
-  editingId.value = null
-  formName.value = ''
+  parentDeptCode.value = parentCode
+  editingDeptCode.value = null
+  resetForm()
   dialogVisible.value = true
 }
 
 const openEdit = (node: DepartmentNode) => {
   dialogMode.value = 'edit'
-  editingId.value = node.id
+  editingDeptCode.value = node.dept_code
   formName.value = node.name
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
-  const raw = formName.value.trim()
-  if (!raw) return
-
   try {
     if (dialogMode.value === 'create') {
-      if (parentId.value === null) {
-        await deptStore.createDepartment(null, raw)
+      if (parentDeptCode.value === null) {
+        const name = formName.value.trim()
+        const deptCode = formDeptCode.value.trim()
+        if (!name || !deptCode) return
+        await deptStore.createDepartment(null, deptCode, name)
         ElMessage.success('添加成功')
       } else {
-        const names = parseNames(raw)
-        if (names.length === 0) return
-        await deptStore.createDepartmentsBatch(parentId.value, names)
-        ElMessage.success(`已添加 ${names.length} 个子部门`)
+        const items = parseBatchItems(formName.value)
+        if (items.length === 0) return
+        await deptStore.createDepartmentsBatch(parentDeptCode.value, items)
+        ElMessage.success(`已添加 ${items.length} 个子部门`)
       }
-    } else if (editingId.value !== null) {
-      await deptStore.updateDepartment(editingId.value, raw)
+    } else if (editingDeptCode.value !== null) {
+      const name = formName.value.trim()
+      if (!name) return
+      await deptStore.updateDepartment(editingDeptCode.value, name)
       ElMessage.success('已更新')
     }
     dialogVisible.value = false
@@ -178,7 +227,7 @@ const handleSubmit = async () => {
 const handleDelete = async (node: DepartmentNode) => {
   try {
     await ElMessageBox.confirm(`确定删除「${node.name}」？`, '删除确认', { type: 'warning' })
-    await deptStore.deleteDepartment(node.id)
+    await deptStore.deleteDepartment(node.dept_code)
     ElMessage.success('已删除')
   } catch (e) {
     if (e !== 'cancel' && e instanceof Error) {

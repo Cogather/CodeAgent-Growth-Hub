@@ -8,16 +8,18 @@ from app.models import MetaDepartment
 
 
 def get_root(db: Session) -> MetaDepartment | None:
-    return db.query(MetaDepartment).filter(MetaDepartment.parent_id.is_(None)).first()
+    return db.query(MetaDepartment).filter(MetaDepartment.parent_dept_code.is_(None)).first()
 
 
-def get_dept_path(db: Session, dept_id: int) -> list[str]:
+def get_dept_path(db: Session, dept_code: str) -> list[str]:
     """从根到当前节点的部门名称路径"""
     names: list[str] = []
-    current = db.get(MetaDepartment, dept_id)
+    current = db.get(MetaDepartment, dept_code)
     while current:
         names.append(current.name)
-        current = db.get(MetaDepartment, current.parent_id) if current.parent_id else None
+        current = (
+            db.get(MetaDepartment, current.parent_dept_code) if current.parent_dept_code else None
+        )
     names.reverse()
     return names
 
@@ -25,7 +27,7 @@ def get_dept_path(db: Session, dept_id: int) -> list[str]:
 def get_max_tree_depth(db: Session) -> int:
     max_depth = 0
     for dept in db.query(MetaDepartment).all():
-        depth = len(get_dept_path(db, dept.id))
+        depth = len(get_dept_path(db, dept.dept_code))
         max_depth = max(max_depth, depth)
     return max_depth
 
@@ -45,7 +47,7 @@ def find_dept_by_path(db: Session, path_names: list[str]) -> MetaDepartment | No
             return None
         child = (
             db.query(MetaDepartment)
-            .filter(MetaDepartment.parent_id == current.id, MetaDepartment.name == name)
+            .filter(MetaDepartment.parent_dept_code == current.dept_code, MetaDepartment.name == name)
             .first()
         )
         if not child:
@@ -63,4 +65,4 @@ def person_matches_dept_path(record: object, path_names: list[str]) -> bool:
 
 
 def list_all_departments(db: Session) -> list[MetaDepartment]:
-    return db.query(MetaDepartment).order_by(MetaDepartment.id).all()
+    return db.query(MetaDepartment).order_by(MetaDepartment.dept_code).all()

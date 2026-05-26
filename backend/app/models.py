@@ -12,19 +12,22 @@ DEPT_LEVELS = 7
 
 
 class MetaDepartment(Base):
-    """部门树 — 仅 id / parent_id / name，供各模块筛选"""
+    """部门树 — dept_code 为主键，parent_dept_code 关联上级，供各模块筛选"""
 
     __tablename__ = "meta_department"
-    __table_args__ = (UniqueConstraint("parent_id", "name", name="uq_dept_parent_name"),)
+    __table_args__ = (UniqueConstraint("parent_dept_code", "name", name="uq_dept_parent_name"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    parent_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("meta_department.id", ondelete="RESTRICT"), nullable=True, index=True
+    dept_code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    parent_dept_code: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        ForeignKey("meta_department.dept_code", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
 
     parent: Mapped[Optional["MetaDepartment"]] = relationship(
-        "MetaDepartment", remote_side=[id], back_populates="children"
+        "MetaDepartment", remote_side=[dept_code], back_populates="children"
     )
     children: Mapped[list["MetaDepartment"]] = relationship(
         "MetaDepartment", back_populates="parent"

@@ -22,29 +22,43 @@ def _validate_dept_name(name: str) -> str:
     return name
 
 
+def _validate_dept_code(code: str) -> str:
+    code = code.strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="部门编码不能为空")
+    if "," in code or "，" in code:
+        raise HTTPException(status_code=400, detail="部门编码不能包含逗号")
+    return code
+
+
 def _build_tree(nodes: list[MetaDepartment]) -> list[DepartmentNode]:
-    node_map: dict[int, DepartmentNode] = {}
+    node_map: dict[str, DepartmentNode] = {}
     roots: list[DepartmentNode] = []
 
     for dept in nodes:
-        node_map[dept.id] = DepartmentNode(id=dept.id, parent_id=dept.parent_id, name=dept.name, children=[])
+        node_map[dept.dept_code] = DepartmentNode(
+            dept_code=dept.dept_code,
+            parent_dept_code=dept.parent_dept_code,
+            name=dept.name,
+            children=[],
+        )
 
     for dept in nodes:
-        node = node_map[dept.id]
-        if dept.parent_id is None:
+        node = node_map[dept.dept_code]
+        if dept.parent_dept_code is None:
             roots.append(node)
-        elif dept.parent_id in node_map:
-            node_map[dept.parent_id].children.append(node)
+        elif dept.parent_dept_code in node_map:
+            node_map[dept.parent_dept_code].children.append(node)
 
-    roots.sort(key=lambda n: n.id)
+    roots.sort(key=lambda n: n.dept_code)
     for node in node_map.values():
-        node.children.sort(key=lambda n: n.id)
+        node.children.sort(key=lambda n: n.dept_code)
 
     return roots
 
 
-def _get_or_404(db: Session, dept_id: int) -> MetaDepartment:
-    dept = db.get(MetaDepartment, dept_id)
+def _get_or_404(db: Session, dept_code: str) -> MetaDepartment:
+    dept = db.get(MetaDepartment, dept_code)
     if not dept:
         raise HTTPException(status_code=404, detail="部门不存在")
     return dept
@@ -52,51 +66,65 @@ def _get_or_404(db: Session, dept_id: int) -> MetaDepartment:
 
 @router.get("/root-status", response_model=RootStatus)
 def get_root_status(db: Session = Depends(get_db)):
-    has_root = db.query(MetaDepartment).filter(MetaDepartment.parent_id.is_(None)).first() is not None
+    has_root = (
+        db.query(MetaDepartment).filter(MetaDepartment.parent_dept_code.is_(None)).first() is not None
+    )
     return RootStatus(has_root=has_root)
 
 
 @router.get("/tree", response_model=list[DepartmentNode])
 def get_department_tree(db: Session = Depends(get_db)):
-    nodes = db.query(MetaDepartment).order_by(MetaDepartment.id).all()
+    nodes = db.query(MetaDepartment).order_by(MetaDepartment.dept_code).all()
     return _build_tree(nodes)
 
 
 @router.post("", response_model=DepartmentFlat, status_code=201, dependencies=[Depends(require_admin)])
 def create_department(payload: DepartmentCreate, db: Session = Depends(get_db)):
-    if payload.parent_id is None:
-        if db.query(MetaDepartment).filter(MetaDepartment.parent_id.is_(None)).first():
+    dept_code = _validate_dept_code(payload.dept_code)
+    if db.get(MetaDepartment, dept_code):
+        raise HTTPException(status_code=400, detail="部门编码已存在")
+
+    if payload.parent_dept_code is None:
+        if db.query(MetaDepartment).filter(MetaDepartment.parent_dept_code.is_(None)).first():
             raise HTTPException(status_code=400, detail="根节点已存在，请在根节点下添加子部门")
     else:
-        _get_or_404(db, payload.parent_id)
+        parent_code = _validate_dept_code(payload.parent_dept_code)
+        _get_or_404(db, parent_code)
 
     name = _validate_dept_name(payload.name)
     duplicate = (
         db.query(MetaDepartment)
-        .filter(MetaDepartment.parent_id == payload.parent_id, MetaDepartment.name == name)
+        .filter(
+            MetaDepartment.parent_dept_code == payload.parent_dept_code,
+            MetaDepartment.name == name,
+        )
         .first()
     )
     if duplicate:
         raise HTTPException(status_code=400, detail="同级下已存在同名部门")
 
-    dept = MetaDepartment(parent_id=payload.parent_id, name=name)
+    dept = MetaDepartment(
+        dept_code=dept_code,
+        parent_dept_code=payload.parent_dept_code,
+        name=name,
+    )
     db.add(dept)
     db.commit()
     db.refresh(dept)
     return dept
 
 
-@router.put("/{dept_id}", response_model=DepartmentFlat, dependencies=[Depends(require_admin)])
-def update_department(dept_id: int, payload: DepartmentUpdate, db: Session = Depends(get_db)):
-    dept = _get_or_404(db, dept_id)
+@router.put("/{dept_code}", response_model=DepartmentFlat, dependencies=[Depends(require_admin)])
+def update_department(dept_code: str, payload: DepartmentUpdate, db: Session = Depends(get_db)):
+    dept = _get_or_404(db, dept_code)
     name = _validate_dept_name(payload.name)
 
     duplicate = (
         db.query(MetaDepartment)
         .filter(
-            MetaDepartment.parent_id == dept.parent_id,
+            MetaDepartment.parent_dept_code == dept.parent_dept_code,
             MetaDepartment.name == name,
-            MetaDepartment.id != dept_id,
+            MetaDepartment.dept_code != dept_code,
         )
         .first()
     )
@@ -109,11 +137,11 @@ def update_department(dept_id: int, payload: DepartmentUpdate, db: Session = Dep
     return dept
 
 
-@router.delete("/{dept_id}", status_code=204, dependencies=[Depends(require_admin)])
-def delete_department(dept_id: int, db: Session = Depends(get_db)):
-    dept = _get_or_404(db, dept_id)
+@router.delete("/{dept_code}", status_code=204, dependencies=[Depends(require_admin)])
+def delete_department(dept_code: str, db: Session = Depends(get_db)):
+    dept = _get_or_404(db, dept_code)
 
-    if db.query(MetaDepartment).filter(MetaDepartment.parent_id == dept_id).count() > 0:
+    if db.query(MetaDepartment).filter(MetaDepartment.parent_dept_code == dept_code).count() > 0:
         raise HTTPException(status_code=400, detail="请先删除所有子部门")
 
     db.delete(dept)

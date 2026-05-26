@@ -17,7 +17,7 @@
           ref="treeRef"
           :data="deptTree"
           :props="{ label: 'name', children: 'children' }"
-          node-key="id"
+          node-key="dept_code"
           highlight-current
           default-expand-all
           :expand-on-click-node="false"
@@ -113,7 +113,7 @@ const visible = computed({
 const loading = ref(false)
 const personnel = ref<PersonnelItem[]>([])
 const deptTree = ref<DepartmentNode[]>([])
-const selectedDeptId = ref<number | null>(null)
+const selectedDeptCode = ref<string | null>(null)
 const treeRef = ref<InstanceType<typeof ElTree>>()
 const pieChartRef = ref<HTMLElement>()
 const barChartRef = ref<HTMLElement>()
@@ -124,8 +124,8 @@ const zoneLabel = computed(() => ZONE_META[props.zone].label)
 const permittedSet = computed(() => new Set(props.permittedEmpNos))
 
 const selectedPath = computed(() => {
-  if (selectedDeptId.value === null || deptTree.value.length === 0) return [] as string[]
-  return findDeptPath(deptTree.value, selectedDeptId.value) ?? []
+  if (selectedDeptCode.value === null || deptTree.value.length === 0) return [] as string[]
+  return findDeptPath(deptTree.value, selectedDeptCode.value) ?? []
 })
 
 const scopeLabel = computed(() => {
@@ -145,8 +145,8 @@ const summary = computed<PermissionSummary>(() =>
 )
 
 const selectedNode = computed(() => {
-  if (selectedDeptId.value === null) return null
-  return findDeptNode(deptTree.value, selectedDeptId.value)
+  if (selectedDeptCode.value === null) return null
+  return findDeptNode(deptTree.value, selectedDeptCode.value)
 })
 
 const childStats = computed<ChildDeptStats[]>(() => {
@@ -258,12 +258,12 @@ const renderCharts = async () => {
 const selectDefaultNode = async () => {
   await nextTick()
   if (deptTree.value.length === 0) {
-    selectedDeptId.value = null
+    selectedDeptCode.value = null
     return
   }
-  const rootId = deptTree.value[0].id
-  selectedDeptId.value = rootId
-  treeRef.value?.setCurrentKey(rootId)
+  const rootCode = deptTree.value[0].dept_code
+  selectedDeptCode.value = rootCode
+  treeRef.value?.setCurrentKey(rootCode)
 }
 
 const loadData = async () => {
@@ -280,7 +280,7 @@ const loadData = async () => {
 }
 
 const handleNodeClick = (node: DepartmentNode) => {
-  selectedDeptId.value = node.id
+  selectedDeptCode.value = node.dept_code
 }
 
 const handleOpened = () => {
@@ -294,7 +294,7 @@ const handleClosed = () => {
   barChart.value = undefined
   personnel.value = []
   deptTree.value = []
-  selectedDeptId.value = null
+  selectedDeptCode.value = null
 }
 
 const handleResize = () => {

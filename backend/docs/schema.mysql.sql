@@ -7,12 +7,12 @@ CREATE DATABASE IF NOT EXISTS codeagent_growth_hub
 USE codeagent_growth_hub;
 
 CREATE TABLE IF NOT EXISTS meta_department (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    parent_id   INT NULL,
-    name        VARCHAR(128) NOT NULL,
-    CONSTRAINT fk_dept_parent FOREIGN KEY (parent_id) REFERENCES meta_department(id) ON DELETE RESTRICT,
-    CONSTRAINT uq_dept_parent_name UNIQUE (parent_id, name),
-    INDEX idx_dept_parent (parent_id)
+    dept_code         VARCHAR(64) NOT NULL PRIMARY KEY,
+    parent_dept_code  VARCHAR(64) NULL,
+    name              VARCHAR(128) NOT NULL,
+    CONSTRAINT fk_dept_parent FOREIGN KEY (parent_dept_code) REFERENCES meta_department(dept_code) ON DELETE RESTRICT,
+    CONSTRAINT uq_dept_parent_name UNIQUE (parent_dept_code, name),
+    INDEX idx_dept_parent (parent_dept_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS meta_personnel (

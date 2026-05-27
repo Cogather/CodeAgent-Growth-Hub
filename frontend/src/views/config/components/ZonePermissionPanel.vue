@@ -18,7 +18,10 @@
       <p class="toolbar-hint">{{ zoneDescription }}</p>
     </el-card>
 
-    <el-card shadow="never" v-loading="loading">
+    <el-card shadow="never" v-loading="loading" class="table-card">
+      <div class="table-card-bar">
+        <TableRowCount :total="items.length" :display="items.length" />
+      </div>
       <el-table :data="items" stripe empty-text="暂无白名单人员，请批量配置" max-height="520">
         <el-table-column prop="emp_no" label="工号" width="120" fixed="left" />
         <el-table-column prop="name" label="姓名" width="100" fixed="left" />
@@ -89,6 +92,7 @@
 import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PieChart } from '@element-plus/icons-vue'
+import TableRowCount from '@/components/TableRowCount.vue'
 import { zonePermissionApi } from '@/api/zonePermission'
 import { useAuthStore } from '@/stores/auth'
 import { ZONE_META, type NetworkZone, type ZonePermissionItem } from '@/types'
@@ -218,5 +222,15 @@ const handleRemove = async (row: ZonePermissionItem) => {
 
 .model-tag {
   margin: 2px 4px 2px 0;
+}
+
+.table-card :deep(.el-card__body) {
+  padding-top: 12px;
+}
+
+.table-card-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
 }
 </style>

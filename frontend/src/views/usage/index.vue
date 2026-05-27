@@ -24,7 +24,10 @@
           </p>
         </el-card>
 
-        <el-card shadow="never" v-loading="store.loading">
+        <el-card shadow="never" v-loading="store.loading" class="table-card">
+          <div class="table-card-bar">
+            <TableRowCount :total="totalCount" :display="displayCount" />
+          </div>
           <el-table
             ref="tableRef"
             :data="store.items"
@@ -32,6 +35,7 @@
             empty-text="暂无有权限人员，请先在配置中心录入人员并配置网络区域权限"
             max-height="560"
             :default-sort="{ prop: 'usage_count', order: 'descending' }"
+            @filter-change="onFilterChange"
           >
             <el-table-column
               prop="emp_no"
@@ -124,8 +128,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, toRef } from 'vue'
 import { ElMessage, type TabPaneName, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
+import TableRowCount from '@/components/TableRowCount.vue'
+import { useTableFilteredCount } from '@/composables/useTableFilteredCount'
 import { useUsageStatsStore } from '@/stores/usageStats'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, type UsageStatItem } from '@/types'
@@ -137,6 +143,8 @@ type FilterOption = { text: string; value: string }
 const authStore = useAuthStore()
 const store = useUsageStatsStore()
 const tableRef = ref<TableInstance>()
+const { totalCount, displayCount, onFilterChange, clearTableFilters: resetTableFilters } =
+  useTableFilteredCount(toRef(store, 'items'))
 const chartsRef = ref<{ refreshCharts: () => void }>()
 const uploadRef = ref<UploadInstance>()
 const importDialogVisible = ref(false)
@@ -171,7 +179,7 @@ const filterByField = (field: keyof UsageStatItem) => {
 }
 
 const clearTableFilters = () => {
-  tableRef.value?.clearFilter()
+  resetTableFilters(tableRef.value)
 }
 
 const handleTabChange = (name: TabPaneName) => {
@@ -284,5 +292,15 @@ onMounted(() => {
 
 .usage-zero {
   color: #9ca3af;
+}
+
+.table-card :deep(.el-card__body) {
+  padding-top: 12px;
+}
+
+.table-card-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
 }
 </style>

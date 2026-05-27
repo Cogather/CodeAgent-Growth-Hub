@@ -17,13 +17,17 @@
       </p>
     </el-card>
 
-    <el-card shadow="never" v-loading="personnelStore.loading">
+    <el-card shadow="never" v-loading="personnelStore.loading" class="table-card">
+      <div class="table-card-bar">
+        <TableRowCount :total="totalCount" :display="displayCount" />
+      </div>
       <el-table
         ref="tableRef"
         :data="personnelStore.items"
         stripe
         empty-text="暂无人员，请批量导入工号"
         max-height="560"
+        @filter-change="onFilterChange"
       >
         <el-table-column
           prop="emp_no"
@@ -112,8 +116,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, toRef } from 'vue'
 import { ElMessage, ElMessageBox, type TableInstance } from 'element-plus'
+import TableRowCount from '@/components/TableRowCount.vue'
+import { useTableFilteredCount } from '@/composables/useTableFilteredCount'
 import { usePersonnelStore } from '@/stores/personnel'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
@@ -123,6 +129,8 @@ type FilterOption = { text: string; value: string }
 const authStore = useAuthStore()
 const personnelStore = usePersonnelStore()
 const tableRef = ref<TableInstance>()
+const { totalCount, displayCount, onFilterChange, clearTableFilters: resetTableFilters } =
+  useTableFilteredCount(toRef(personnelStore, 'items'))
 const importDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const importText = ref('')
@@ -173,7 +181,7 @@ const filterByField = (field: keyof PersonnelItem) => {
 }
 
 const clearTableFilters = () => {
-  tableRef.value?.clearFilter()
+  resetTableFilters(tableRef.value)
 }
 
 onMounted(() => {
@@ -280,5 +288,15 @@ const handleDelete = async (row: PersonnelItem) => {
   max-height: 420px;
   overflow-y: auto;
   padding-right: 8px;
+}
+
+.table-card :deep(.el-card__body) {
+  padding-top: 12px;
+}
+
+.table-card-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
 }
 </style>

@@ -34,11 +34,11 @@
             :default-sort="{ prop: 'usage_count', order: 'descending' }"
           >
             <el-table-column
-              prop="display_emp_no"
+              prop="emp_no"
               label="工号"
-              column-key="display_emp_no"
-              :filters="displayEmpNoFilters"
-              :filter-method="filterByField('display_emp_no')"
+              column-key="emp_no"
+              :filters="empNoFilters"
+              :filter-method="filterByField('emp_no')"
               filter-placement="bottom-end"
               min-width="120"
               fixed="left"
@@ -154,7 +154,7 @@ const buildFilters = (items: UsageStatItem[], field: keyof UsageStatItem): Filte
     .map((v) => ({ text: v || '（空）', value: v }))
 }
 
-const displayEmpNoFilters = computed(() => buildFilters(store.items, 'display_emp_no'))
+const empNoFilters = computed(() => buildFilters(store.items, 'emp_no'))
 const nameFilters = computed(() => buildFilters(store.items, 'name'))
 const deptFilters = computed(() =>
   DEPT_DISPLAY_LEVELS.map((level) => {

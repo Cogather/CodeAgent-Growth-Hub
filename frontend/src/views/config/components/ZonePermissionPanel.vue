@@ -20,7 +20,7 @@
 
     <el-card shadow="never" v-loading="loading">
       <el-table :data="items" stripe empty-text="暂无白名单人员，请批量配置" max-height="520">
-        <el-table-column prop="display_emp_no" label="工号" width="120" fixed="left" />
+        <el-table-column prop="emp_no" label="工号" width="120" fixed="left" />
         <el-table-column prop="name" label="姓名" width="100" fixed="left" />
         <el-table-column label="模型权限" min-width="280">
           <template #default="{ row }">
@@ -62,7 +62,7 @@
     <el-dialog v-model="editDialogVisible" title="编辑模型权限" width="440px" destroy-on-close>
       <el-form label-width="88px">
         <el-form-item label="工号">
-          <el-input :model-value="editingRow?.display_emp_no" disabled />
+          <el-input :model-value="editingRow?.emp_no" disabled />
         </el-form-item>
         <el-form-item label="姓名">
           <el-input :model-value="editingRow?.name" disabled />

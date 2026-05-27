@@ -188,7 +188,7 @@ def build_zero_usage_excel(items: list[dict[str, Any]]) -> bytes:
         cell.font = Font(bold=True)
 
     for item in items:
-        row = [item.get("display_emp_no", ""), item.get("name", "")]
+        row = [item.get("emp_no", "") or item.get("display_emp_no", ""), item.get("name", "")]
         for level in range(visible_start, HR_DEPT_STORE_LEVELS + 1):
             row.append(item.get(f"dept_l{level}_name") or "")
             row.append(item.get(f"dept_l{level}_code") or "")

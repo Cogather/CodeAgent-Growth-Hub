@@ -78,7 +78,9 @@ def name_to_initial(name: str) -> str:
 
 
 def display_emp_no(name: str, emp_no: str) -> str:
-    return f"{name_to_initial(name)}{emp_no}"
+    """界面展示工号：与库中 emp_no（sAMAccountName）一致，不再拼接姓名首字母"""
+    _ = name
+    return emp_no.strip()
 
 
 def _build_lookup_url(base: str, emp_no: str) -> str:
@@ -152,9 +154,17 @@ def org_dept_names_from_employee(hr: HREmployee) -> list[str]:
     return dept_levels_to_names(hr.dept_levels)
 
 
+def _sam_account_name(record: dict[str, Any]) -> str:
+    for key in ("sAMAccountName", "samAccountName", "SamAccountName"):
+        value = _str_value(record.get(key))
+        if value:
+            return value
+    return ""
+
+
 def personnel_emp_no_from_record(record: dict[str, Any], query_emp_no: str) -> str | None:
     """人员名单主键取 HR 的 sAMAccountName；未配置真实 HR 时回退为查询工号（Mock）"""
-    account = _str_value(record.get("sAMAccountName"))
+    account = _sam_account_name(record)
     if account:
         return account
     if get_settings().hr_lookup_url:
@@ -212,7 +222,7 @@ def _lookup_employee_remote(emp_no: str) -> HREmployee | None:
     if not record:
         return None
 
-    if not _str_value(record.get("sAMAccountName")):
+    if not _sam_account_name(record):
         logger.warning("HR record missing sAMAccountName for query %s", emp_no)
         return None
 

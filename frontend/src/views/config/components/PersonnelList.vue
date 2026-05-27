@@ -26,11 +26,11 @@
         max-height="560"
       >
         <el-table-column
-          prop="display_emp_no"
+          prop="emp_no"
           label="工号"
-          column-key="display_emp_no"
-          :filters="displayEmpNoFilters"
-          :filter-method="filterByField('display_emp_no')"
+          column-key="emp_no"
+          :filters="empNoFilters"
+          :filter-method="filterByField('emp_no')"
           filter-placement="bottom-end"
           min-width="120"
           fixed="left"
@@ -155,7 +155,7 @@ const buildFilters = (items: PersonnelItem[], field: keyof PersonnelItem): Filte
     .map((v) => ({ text: v || '（空）', value: v }))
 }
 
-const displayEmpNoFilters = computed(() => buildFilters(personnelStore.items, 'display_emp_no'))
+const empNoFilters = computed(() => buildFilters(personnelStore.items, 'emp_no'))
 const nameFilters = computed(() => buildFilters(personnelStore.items, 'name'))
 
 const deptFilters = computed(() =>
@@ -239,7 +239,7 @@ const handleSaveEdit = async () => {
 
 const handleDelete = async (row: PersonnelItem) => {
   try {
-    await ElMessageBox.confirm(`确定移除「${row.name}」（${row.display_emp_no}）？`, '移除确认', {
+    await ElMessageBox.confirm(`确定移除「${row.name}」（${row.emp_no}）？`, '移除确认', {
       type: 'warning'
     })
     await personnelStore.deletePersonnel(row.emp_no)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 HR_API_DEPT_LEVELS = 6
 
+
 @dataclass
 class HRDeptLevel:
     name: str
@@ -28,6 +29,7 @@ class HREmployee:
     emp_no: str
     name: str
     dept_levels: list[HRDeptLevel]
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 _MOCK_HR: dict[str, HREmployee] = {
@@ -57,6 +59,10 @@ _MOCK_HR: dict[str, HREmployee] = {
         [HRDeptLevel("总公司", "ORG001"), HRDeptLevel("未配置部门", "XX001")],
     ),
 }
+
+
+def _hr_org_start_level() -> int:
+    return get_settings().hr_org_start_level
 
 
 def name_to_initial(name: str) -> str:
@@ -97,6 +103,55 @@ def _pick_record(items: list[dict[str, Any]]) -> dict[str, Any] | None:
     return items[0] if items else None
 
 
+def org_dept_names_from_record(record: dict[str, Any]) -> list[str]:
+    """与组织架构对齐的部门名称路径（默认自 hwDepartName3 起）"""
+    start = _hr_org_start_level()
+    names: list[str] = []
+    for i in range(start, HR_API_DEPT_LEVELS + 1):
+        name = _str_value(record.get(f"hwDepartName{i}"))
+        if name:
+            names.append(name)
+    return names
+
+
+def count_org_dept_levels(record: dict[str, Any]) -> int:
+    start = _hr_org_start_level()
+    count = 0
+    for i in range(start, HR_API_DEPT_LEVELS + 1):
+        if _str_value(record.get(f"hwDepartName{i}")) or _str_value(record.get(f"hwDepartCode{i}")):
+            count += 1
+    return count
+
+
+def hr_record_to_personnel_fields(record: dict[str, Any]) -> dict[str, str | None]:
+    """hwDepartName1-6 原样写入 dept_l1-6；展示与组织树自第 3 级起由前端/筛选处理"""
+    data: dict[str, str | None] = {}
+    for i in range(1, DEPT_LEVELS + 1):
+        data[f"dept_l{i}_name"] = None
+        data[f"dept_l{i}_code"] = None
+
+    for hr_i in range(1, HR_API_DEPT_LEVELS + 1):
+        dname = _str_value(record.get(f"hwDepartName{hr_i}"))
+        dcode = _str_value(record.get(f"hwDepartCode{hr_i}"))
+        if not dname and not dcode:
+            continue
+        data[f"dept_l{hr_i}_name"] = dname or None
+        data[f"dept_l{hr_i}_code"] = dcode or None
+    return data
+
+
+def personnel_fields_from_employee(hr: HREmployee) -> dict[str, str | None]:
+    if hr.raw:
+        return hr_record_to_personnel_fields(hr.raw)
+    return hr_levels_to_model_fields(hr.dept_levels)
+
+
+def org_dept_names_from_employee(hr: HREmployee) -> list[str]:
+    if hr.raw:
+        return org_dept_names_from_record(hr.raw)
+    return dept_levels_to_names(hr.dept_levels)
+
+
 def _parse_hr_record(record: dict[str, Any], emp_no: str) -> HREmployee | None:
     name = _str_value(record.get("chName"))
     if not name:
@@ -109,7 +164,7 @@ def _parse_hr_record(record: dict[str, Any], emp_no: str) -> HREmployee | None:
         if dname or dcode:
             dept_levels.append(HRDeptLevel(name=dname, code=dcode))
 
-    return HREmployee(emp_no=emp_no.strip(), name=name, dept_levels=dept_levels)
+    return HREmployee(emp_no=emp_no.strip(), name=name, dept_levels=dept_levels, raw=record)
 
 
 def _lookup_employee_remote(emp_no: str) -> HREmployee | None:
@@ -120,7 +175,11 @@ def _lookup_employee_remote(emp_no: str) -> HREmployee | None:
 
     request_url = _build_lookup_url(url, emp_no)
     try:
-        with httpx.Client(timeout=settings.hr_lookup_timeout_seconds) as client:
+        with httpx.Client(
+            timeout=settings.hr_lookup_timeout_seconds,
+            trust_env=False,
+            verify=False,
+        ) as client:
             response = client.get(request_url)
             response.raise_for_status()
             payload = response.json()
@@ -158,7 +217,7 @@ def dept_levels_to_names(levels: list[HRDeptLevel]) -> list[str]:
 
 
 def hr_levels_to_model_fields(levels: list[HRDeptLevel]) -> dict[str, str | None]:
-    """将 HR 层级列表写入 meta_personnel 平铺字段"""
+    """Mock 数据等无 raw 记录时，按顺序写入 dept_l1 起"""
     data: dict[str, str | None] = {}
     for i in range(1, DEPT_LEVELS + 1):
         data[f"dept_l{i}_name"] = None

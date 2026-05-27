@@ -65,12 +65,12 @@
               </template>
             </el-table-column>
             <el-table-column
-              v-for="level in DEPT_LEVELS"
+              v-for="(level, deptIdx) in DEPT_DISPLAY_LEVELS"
               :key="level"
               :prop="`dept_l${level}_name`"
               :label="`${level}级部门`"
               :column-key="`dept_l${level}_name`"
-              :filters="deptFilters[level - 1]"
+              :filters="deptFilters[deptIdx]"
               :filter-method="filterByField(`dept_l${level}_name` as keyof UsageStatItem)"
               filter-placement="bottom-end"
               min-width="130"
@@ -128,7 +128,7 @@ import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { ElMessage, type TabPaneName, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
 import { useUsageStatsStore } from '@/stores/usageStats'
 import { useAuthStore } from '@/stores/auth'
-import { DEPT_LEVELS, type UsageStatItem } from '@/types'
+import { DEPT_DISPLAY_LEVELS, type UsageStatItem } from '@/types'
 
 const UsageStatsCharts = defineAsyncComponent(() => import('./components/UsageStatsCharts.vue'))
 
@@ -157,8 +157,8 @@ const buildFilters = (items: UsageStatItem[], field: keyof UsageStatItem): Filte
 const displayEmpNoFilters = computed(() => buildFilters(store.items, 'display_emp_no'))
 const nameFilters = computed(() => buildFilters(store.items, 'name'))
 const deptFilters = computed(() =>
-  Array.from({ length: DEPT_LEVELS }, (_, i) => {
-    const field = `dept_l${i + 1}_name` as keyof UsageStatItem
+  DEPT_DISPLAY_LEVELS.map((level) => {
+    const field = `dept_l${level}_name` as keyof UsageStatItem
     return buildFilters(store.items, field)
   })
 )

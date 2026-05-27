@@ -10,6 +10,8 @@ from typing import Any
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font
 
+from app.services.dept_utils import HR_DEPT_STORE_LEVELS, hr_dept_visible_start
+
 EMP_NO_HEADERS = {"工号", "员工工号", "emp_no", "emp no"}
 USAGE_HEADERS = {"使用次数", "次数", "usage_count", "usage count", "使用量"}
 
@@ -176,8 +178,9 @@ def build_zero_usage_excel(items: list[dict[str, Any]]) -> bytes:
     ws = wb.active
     ws.title = "未使用人员"
 
+    visible_start = hr_dept_visible_start()
     headers = ["工号", "姓名"]
-    for level in range(1, 8):
+    for level in range(visible_start, HR_DEPT_STORE_LEVELS + 1):
         headers.extend([f"{level}级部门", f"{level}级部门编码"])
     headers.append("使用次数")
     ws.append(headers)
@@ -186,7 +189,7 @@ def build_zero_usage_excel(items: list[dict[str, Any]]) -> bytes:
 
     for item in items:
         row = [item.get("display_emp_no", ""), item.get("name", "")]
-        for level in range(1, 8):
+        for level in range(visible_start, HR_DEPT_STORE_LEVELS + 1):
             row.append(item.get(f"dept_l{level}_name") or "")
             row.append(item.get(f"dept_l{level}_code") or "")
         row.append(item.get("usage_count", 0))

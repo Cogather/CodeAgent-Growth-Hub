@@ -145,6 +145,9 @@ export type PersonnelUpdatePayload = Pick<
 >
 
 export const DEPT_LEVELS = 7
+/** HR 导入写入 dept_l1-6；页面与组织树筛选仅展示 3-6 级 */
+export const DEPT_DISPLAY_START = 3
+export const DEPT_DISPLAY_LEVELS = [3, 4, 5, 6] as const
 
 export type NetworkZone = 'yellow' | 'blue' | 'green'
 

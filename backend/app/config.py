@@ -47,6 +47,16 @@ class Settings(BaseSettings):
         description="HR 工号查询 GET 地址，程序追加 ?info=工号（若已以 ?info= 结尾则直接拼接工号）",
     )
     hr_lookup_timeout_seconds: float = Field(default=10.0, alias="HR_LOOKUP_TIMEOUT_SECONDS")
+    hr_lookup_use_system_proxy: bool = Field(
+        default=False,
+        alias="HR_LOOKUP_USE_SYSTEM_PROXY",
+        description="为 true 时使用 HTTP_PROXY 等环境变量；内网 HR 建议 false 直连",
+    )
+    hr_org_start_level: int = Field(
+        default=3,
+        alias="HR_ORG_START_LEVEL",
+        description="页面展示与部门树对齐的 HR 起始层级；导入仍按 hwDepartName1-6 存入 dept_l1-6",
+    )
 
     @property
     def cors_origins(self) -> list[str]:

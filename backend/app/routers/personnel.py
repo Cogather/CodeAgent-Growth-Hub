@@ -20,14 +20,15 @@ from app.schemas import (
     PersonnelListResponse,
     PersonnelUpdate,
 )
-from app.services.dept_utils import get_root
+from app.services.dept_utils import HR_DEPT_STORE_LEVELS, get_root, hr_dept_visible_start
 from app.services.excel_export import build_import_exceptions_excel
 from app.services.hr_lookup import (
-    dept_levels_to_names,
+    count_org_dept_levels,
     display_emp_no,
-    hr_levels_to_model_fields,
     lookup_employee,
     name_to_initial,
+    org_dept_names_from_employee,
+    personnel_fields_from_employee,
 )
 from app.services.personnel_fields import apply_dept_fields_to_model, model_dept_fields_from_payload
 
@@ -93,14 +94,26 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
             failures.append(ImportFailureItem(emp_no=emp_no, reason="HR 未返回该工号信息"))
             continue
 
-        dept_names = dept_levels_to_names(hr.dept_levels)
-        if len(hr.dept_levels) > DEPT_LEVELS:
+        dept_names = org_dept_names_from_employee(hr)
+        org_level_count = count_org_dept_levels(hr.raw) if hr.raw else len(dept_names)
+        max_org_levels = HR_DEPT_STORE_LEVELS - hr_dept_visible_start() + 1
+        if org_level_count > max_org_levels:
             failures.append(
                 ImportFailureItem(
                     emp_no=emp_no,
                     name=hr.name,
                     hr_dept_path=dept_names,
-                    reason=f"部门层级超过 {DEPT_LEVELS} 级，无法录入",
+                    reason=f"组织可见部门超过 {max_org_levels} 级，无法录入",
+                )
+            )
+            continue
+
+        if not dept_names:
+            failures.append(
+                ImportFailureItem(
+                    emp_no=emp_no,
+                    name=hr.name,
+                    reason="HR 未返回可对齐组织架构的部门信息",
                 )
             )
             continue
@@ -128,7 +141,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
             )
             continue
 
-        dept_fields = hr_levels_to_model_fields(hr.dept_levels)
+        dept_fields = personnel_fields_from_employee(hr)
         db.add(
             MetaPersonnel(
                 emp_no=emp_no,

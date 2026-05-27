@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.models import MetaDepartment
+
+HR_DEPT_STORE_LEVELS = 6
 
 
 def get_root(db: Session) -> MetaDepartment | None:
@@ -56,10 +59,16 @@ def find_dept_by_path(db: Session, path_names: list[str]) -> MetaDepartment | No
     return current
 
 
+def hr_dept_visible_start() -> int:
+    return get_settings().hr_org_start_level
+
+
 def person_matches_dept_path(record: object, path_names: list[str]) -> bool:
-    """记录的一级至 N 级部门名称是否与给定路径完全匹配"""
-    for i, name in enumerate(path_names, start=1):
-        if getattr(record, f"dept_l{i}_name", None) != name:
+    """部门树路径（自根起）与人员 dept_l3 起字段对齐匹配"""
+    start = hr_dept_visible_start()
+    for i, name in enumerate(path_names):
+        dept_level = start + i
+        if getattr(record, f"dept_l{dept_level}_name", None) != name:
             return False
     return True
 

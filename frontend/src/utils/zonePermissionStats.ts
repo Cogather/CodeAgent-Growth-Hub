@@ -1,4 +1,5 @@
 import type { DepartmentNode, PersonnelItem } from '@/types'
+import { DEPT_DISPLAY_START } from '@/types'
 
 export type DeptPathRecord = Pick<
   PersonnelItem,
@@ -57,7 +58,8 @@ export function findDeptNode(
 
 export function personMatchesDeptPath(person: DeptPathRecord, path: string[]): boolean {
   for (let i = 0; i < path.length; i++) {
-    const name = person[`dept_l${i + 1}_name` as keyof DeptPathRecord] as string | null
+    const deptLevel = DEPT_DISPLAY_START + i
+    const name = person[`dept_l${deptLevel}_name` as keyof DeptPathRecord] as string | null
     if (name !== path[i]) return false
   }
   return true

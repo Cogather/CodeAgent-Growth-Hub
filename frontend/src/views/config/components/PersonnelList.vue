@@ -46,12 +46,12 @@
           fixed="left"
         />
         <el-table-column
-          v-for="level in DEPT_LEVELS"
+          v-for="(level, deptIdx) in DEPT_DISPLAY_LEVELS"
           :key="level"
           :prop="`dept_l${level}_name`"
           :label="`${level}级部门`"
           :column-key="`dept_l${level}_name`"
-          :filters="deptFilters[level - 1]"
+          :filters="deptFilters[deptIdx]"
           :filter-method="filterByField(`dept_l${level}_name` as keyof PersonnelItem)"
           filter-placement="bottom-end"
           min-width="130"
@@ -94,7 +94,7 @@
         <el-form-item label="姓名" required>
           <el-input v-model="editForm.name" maxlength="128" />
         </el-form-item>
-        <template v-for="level in DEPT_LEVELS" :key="level">
+        <template v-for="level in DEPT_DISPLAY_LEVELS" :key="level">
           <el-form-item :label="`${level}级部门`">
             <el-input v-model="editForm[`dept_l${level}_name`]" maxlength="128" />
           </el-form-item>
@@ -116,7 +116,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type TableInstance } from 'element-plus'
 import { usePersonnelStore } from '@/stores/personnel'
 import { useAuthStore } from '@/stores/auth'
-import { DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
+import { DEPT_DISPLAY_LEVELS, DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
 
 type FilterOption = { text: string; value: string }
 
@@ -159,8 +159,8 @@ const displayEmpNoFilters = computed(() => buildFilters(personnelStore.items, 'd
 const nameFilters = computed(() => buildFilters(personnelStore.items, 'name'))
 
 const deptFilters = computed(() =>
-  Array.from({ length: DEPT_LEVELS }, (_, i) => {
-    const field = `dept_l${i + 1}_name` as keyof PersonnelItem
+  DEPT_DISPLAY_LEVELS.map((level) => {
+    const field = `dept_l${level}_name` as keyof PersonnelItem
     return buildFilters(personnelStore.items, field)
   })
 )

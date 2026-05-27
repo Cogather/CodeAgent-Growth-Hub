@@ -35,9 +35,11 @@ class Settings(BaseSettings):
     jwt_expire_hours: int = Field(default=8, alias="JWT_EXPIRE_HOURS")
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     frontend_origins: str = Field(
-        default="http://localhost:3000,http://127.0.0.1:3000",
+        default="http://localhost:9320,http://127.0.0.1:9320",
         alias="FRONTEND_ORIGINS",
     )
+
+    api_port: int = Field(default=9321, alias="API_PORT")
 
     hr_lookup_url: Optional[str] = Field(
         default=None,

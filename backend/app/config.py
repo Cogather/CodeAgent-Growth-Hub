@@ -39,6 +39,13 @@ class Settings(BaseSettings):
         alias="FRONTEND_ORIGINS",
     )
 
+    hr_lookup_url: Optional[str] = Field(
+        default=None,
+        alias="HR_LOOKUP_URL",
+        description="HR 工号查询 GET 地址，程序追加 ?info=工号（若已以 ?info= 结尾则直接拼接工号）",
+    )
+    hr_lookup_timeout_seconds: float = Field(default=10.0, alias="HR_LOOKUP_TIMEOUT_SECONDS")
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]

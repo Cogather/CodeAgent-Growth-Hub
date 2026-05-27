@@ -192,8 +192,7 @@ const handleImport = async () => {
       ElMessage.success(`成功导入 ${result.imported_count} 人`)
     }
     if (result.failures.length > 0) {
-      await personnelStore.exportExceptions(result.failures)
-      ElMessage.warning(`${result.failures.length} 条异常记录已导出 Excel`)
+      ElMessage.warning(`${result.failures.length} 条异常记录已自动导出 Excel`)
     } else if (result.imported_count === 0) {
       ElMessage.info('没有成功导入的人员')
     }

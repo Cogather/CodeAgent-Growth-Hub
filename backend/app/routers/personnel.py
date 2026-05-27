@@ -90,7 +90,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
     for emp_no in emp_nos:
         hr = lookup_employee(emp_no)
         if not hr:
-            failures.append(ImportFailureItem(emp_no=emp_no, reason="工号无法识别，HR 系统中不存在"))
+            failures.append(ImportFailureItem(emp_no=emp_no, reason="HR 未返回该工号信息"))
             continue
 
         dept_names = dept_levels_to_names(hr.dept_levels)

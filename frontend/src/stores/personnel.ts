@@ -22,6 +22,9 @@ export const usePersonnelStore = defineStore('personnel', () => {
     try {
       const result = await personnelApi.batchImport(empNosText)
       await fetchList()
+      if (result.failures.length > 0) {
+        await personnelApi.exportExceptions(result.failures)
+      }
       return result
     } finally {
       loading.value = false

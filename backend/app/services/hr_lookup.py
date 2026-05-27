@@ -1,13 +1,21 @@
-"""HR 系统工号查询（Mock，后续替换为真实接口）"""
+"""HR 系统工号查询：GET ?info=工号，解析 JSON 数组中的员工与六级部门"""
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from typing import Any
+from urllib.parse import quote
 
+import httpx
 from pypinyin import lazy_pinyin
 
+from app.config import get_settings
 from app.models import DEPT_LEVELS
 
+logger = logging.getLogger(__name__)
+
+HR_API_DEPT_LEVELS = 6
 
 @dataclass
 class HRDeptLevel:
@@ -67,8 +75,82 @@ def display_emp_no(name: str, emp_no: str) -> str:
     return f"{name_to_initial(name)}{emp_no}"
 
 
+def _build_lookup_url(base: str, emp_no: str) -> str:
+    base = base.strip()
+    encoded = quote(emp_no.strip(), safe="")
+    if base.endswith("?info="):
+        return f"{base}{encoded}"
+    if base.endswith("?info"):
+        return f"{base}={encoded}"
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}info={encoded}"
+
+
+def _str_value(raw: Any) -> str:
+    if raw is None:
+        return ""
+    return str(raw).strip()
+
+
+def _pick_record(items: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """HR 返回 JSON 数组时默认取第一条；空数组表示查无此人"""
+    return items[0] if items else None
+
+
+def _parse_hr_record(record: dict[str, Any], emp_no: str) -> HREmployee | None:
+    name = _str_value(record.get("chName"))
+    if not name:
+        return None
+
+    dept_levels: list[HRDeptLevel] = []
+    for i in range(1, HR_API_DEPT_LEVELS + 1):
+        dname = _str_value(record.get(f"hwDepartName{i}"))
+        dcode = _str_value(record.get(f"hwDepartCode{i}"))
+        if dname or dcode:
+            dept_levels.append(HRDeptLevel(name=dname, code=dcode))
+
+    return HREmployee(emp_no=emp_no.strip(), name=name, dept_levels=dept_levels)
+
+
+def _lookup_employee_remote(emp_no: str) -> HREmployee | None:
+    settings = get_settings()
+    url = settings.hr_lookup_url
+    if not url:
+        return None
+
+    request_url = _build_lookup_url(url, emp_no)
+    try:
+        with httpx.Client(timeout=settings.hr_lookup_timeout_seconds) as client:
+            response = client.get(request_url)
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPError as exc:
+        logger.warning("HR lookup HTTP error for %s: %s", emp_no, exc)
+        return None
+    except ValueError as exc:
+        logger.warning("HR lookup invalid JSON for %s: %s", emp_no, exc)
+        return None
+
+    if not isinstance(payload, list):
+        logger.warning("HR lookup expected JSON array for %s, got %s", emp_no, type(payload).__name__)
+        return None
+
+    record = _pick_record(payload)
+    if not record:
+        return None
+
+    return _parse_hr_record(record, emp_no)
+
+
 def lookup_employee(emp_no: str) -> HREmployee | None:
-    return _MOCK_HR.get(emp_no.strip())
+    emp_no = emp_no.strip()
+    if not emp_no:
+        return None
+
+    if get_settings().hr_lookup_url:
+        return _lookup_employee_remote(emp_no)
+
+    return _MOCK_HR.get(emp_no)
 
 
 def dept_levels_to_names(levels: list[HRDeptLevel]) -> list[str]:

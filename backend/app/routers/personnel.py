@@ -87,12 +87,25 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
 
     imported_count = 0
     failures: list[ImportFailureItem] = []
+    seen_accounts: set[str] = set()
 
-    for emp_no in emp_nos:
-        hr = lookup_employee(emp_no)
+    for query_emp_no in emp_nos:
+        hr = lookup_employee(query_emp_no)
         if not hr:
-            failures.append(ImportFailureItem(emp_no=emp_no, reason="HR 未返回该工号信息"))
+            failures.append(ImportFailureItem(emp_no=query_emp_no, reason="HR 未返回该工号信息"))
             continue
+
+        store_emp_no = hr.emp_no
+        if store_emp_no in seen_accounts:
+            failures.append(
+                ImportFailureItem(
+                    emp_no=query_emp_no,
+                    name=hr.name,
+                    reason=f"本批重复（账号 {store_emp_no}）",
+                )
+            )
+            continue
+        seen_accounts.add(store_emp_no)
 
         dept_names = org_dept_names_from_employee(hr)
         org_level_count = count_org_dept_levels(hr.raw) if hr.raw else len(dept_names)
@@ -100,7 +113,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
         if org_level_count > max_org_levels:
             failures.append(
                 ImportFailureItem(
-                    emp_no=emp_no,
+                    emp_no=query_emp_no,
                     name=hr.name,
                     hr_dept_path=dept_names,
                     reason=f"组织可见部门超过 {max_org_levels} 级，无法录入",
@@ -111,7 +124,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
         if not dept_names:
             failures.append(
                 ImportFailureItem(
-                    emp_no=emp_no,
+                    emp_no=query_emp_no,
                     name=hr.name,
                     reason="HR 未返回可对齐组织架构的部门信息",
                 )
@@ -122,7 +135,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
         if root_err:
             failures.append(
                 ImportFailureItem(
-                    emp_no=emp_no,
+                    emp_no=query_emp_no,
                     name=hr.name,
                     hr_dept_path=dept_names,
                     reason=root_err,
@@ -130,13 +143,13 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
             )
             continue
 
-        if db.get(MetaPersonnel, emp_no):
+        if db.get(MetaPersonnel, store_emp_no):
             failures.append(
                 ImportFailureItem(
-                    emp_no=emp_no,
+                    emp_no=query_emp_no,
                     name=hr.name,
                     hr_dept_path=dept_names,
-                    reason="该工号已在人员名单中",
+                    reason=f"该账号已在人员名单中（{store_emp_no}）",
                 )
             )
             continue
@@ -144,7 +157,7 @@ def batch_import_personnel(payload: PersonnelBatchImportRequest, db: Session = D
         dept_fields = personnel_fields_from_employee(hr)
         db.add(
             MetaPersonnel(
-                emp_no=emp_no,
+                emp_no=store_emp_no,
                 name=hr.name,
                 name_initial=name_to_initial(hr.name),
                 **dept_fields,

@@ -152,9 +152,23 @@ def org_dept_names_from_employee(hr: HREmployee) -> list[str]:
     return dept_levels_to_names(hr.dept_levels)
 
 
-def _parse_hr_record(record: dict[str, Any], emp_no: str) -> HREmployee | None:
+def personnel_emp_no_from_record(record: dict[str, Any], query_emp_no: str) -> str | None:
+    """人员名单主键取 HR 的 sAMAccountName；未配置真实 HR 时回退为查询工号（Mock）"""
+    account = _str_value(record.get("sAMAccountName"))
+    if account:
+        return account
+    if get_settings().hr_lookup_url:
+        return None
+    return query_emp_no.strip() or None
+
+
+def _parse_hr_record(record: dict[str, Any], query_emp_no: str) -> HREmployee | None:
     name = _str_value(record.get("chName"))
     if not name:
+        return None
+
+    emp_no = personnel_emp_no_from_record(record, query_emp_no)
+    if not emp_no:
         return None
 
     dept_levels: list[HRDeptLevel] = []
@@ -164,7 +178,7 @@ def _parse_hr_record(record: dict[str, Any], emp_no: str) -> HREmployee | None:
         if dname or dcode:
             dept_levels.append(HRDeptLevel(name=dname, code=dcode))
 
-    return HREmployee(emp_no=emp_no.strip(), name=name, dept_levels=dept_levels, raw=record)
+    return HREmployee(emp_no=emp_no, name=name, dept_levels=dept_levels, raw=record)
 
 
 def _lookup_employee_remote(emp_no: str) -> HREmployee | None:
@@ -196,6 +210,10 @@ def _lookup_employee_remote(emp_no: str) -> HREmployee | None:
 
     record = _pick_record(payload)
     if not record:
+        return None
+
+    if not _str_value(record.get("sAMAccountName")):
+        logger.warning("HR record missing sAMAccountName for query %s", emp_no)
         return None
 
     return _parse_hr_record(record, emp_no)

@@ -269,7 +269,7 @@ const selectDefaultNode = async () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const [personnelRes, tree] = await Promise.all([personnelApi.list(), departmentApi.getTree()])
+    const [personnelRes, tree] = await Promise.all([personnelApi.listAll(), departmentApi.getTree()])
     personnel.value = personnelRes.items
     deptTree.value = tree
     await selectDefaultNode()

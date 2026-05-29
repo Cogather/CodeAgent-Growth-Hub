@@ -1,10 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps.auth import get_current_user, require_admin
 from app.models import MetaDepartment
-from app.schemas import DepartmentCreate, DepartmentFlat, DepartmentNode, DepartmentUpdate, RootStatus
+from app.schemas import (
+    DepartmentCreate,
+    DepartmentFlat,
+    DepartmentLazyNode,
+    DepartmentNode,
+    DepartmentUpdate,
+    RootStatus,
+)
 
 router = APIRouter(
     prefix="/departments",
@@ -76,6 +84,49 @@ def get_root_status(db: Session = Depends(get_db)):
 def get_department_tree(db: Session = Depends(get_db)):
     nodes = db.query(MetaDepartment).order_by(MetaDepartment.dept_code).all()
     return _build_tree(nodes)
+
+
+@router.get("/children", response_model=list[DepartmentLazyNode])
+def get_department_children(
+    parent_dept_code: Optional[str] = Query(None, description="省略时返回根节点"),
+    db: Session = Depends(get_db),
+):
+    if parent_dept_code is None:
+        depts = (
+            db.query(MetaDepartment)
+            .filter(MetaDepartment.parent_dept_code.is_(None))
+            .order_by(MetaDepartment.dept_code)
+            .all()
+        )
+    else:
+        depts = (
+            db.query(MetaDepartment)
+            .filter(MetaDepartment.parent_dept_code == parent_dept_code)
+            .order_by(MetaDepartment.dept_code)
+            .all()
+        )
+
+    if not depts:
+        return []
+
+    dept_codes = [dept.dept_code for dept in depts]
+    child_rows = (
+        db.query(MetaDepartment.parent_dept_code)
+        .filter(MetaDepartment.parent_dept_code.in_(dept_codes))
+        .distinct()
+        .all()
+    )
+    parents_with_children = {row[0] for row in child_rows if row[0]}
+
+    return [
+        DepartmentLazyNode(
+            dept_code=dept.dept_code,
+            parent_dept_code=dept.parent_dept_code,
+            name=dept.name,
+            has_children=dept.dept_code in parents_with_children,
+        )
+        for dept in depts
+    ]
 
 
 @router.post("", response_model=DepartmentFlat, status_code=201, dependencies=[Depends(require_admin)])

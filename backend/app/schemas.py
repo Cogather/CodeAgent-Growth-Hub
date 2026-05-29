@@ -24,6 +24,13 @@ class DepartmentNode(BaseModel):
     children: List["DepartmentNode"] = []
 
 
+class DepartmentLazyNode(BaseModel):
+    dept_code: str
+    parent_dept_code: Optional[str]
+    name: str
+    has_children: bool
+
+
 class DepartmentFlat(BaseModel):
     dept_code: str
     parent_dept_code: Optional[str]
@@ -61,6 +68,13 @@ class PersonnelItem(PersonnelDeptFields):
 
 class PersonnelListResponse(BaseModel):
     items: List[PersonnelItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class PersonnelDistinctResponse(BaseModel):
+    values: List[str]
 
 
 class PersonnelBatchImportRequest(BaseModel):

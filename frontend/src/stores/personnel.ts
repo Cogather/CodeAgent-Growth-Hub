@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { personnelApi } from '@/api/personnel'
-import type { ImportFailureItem, PersonnelItem, PersonnelUpdatePayload } from '@/types'
+import type { ImportFailureItem, PersonnelItem, PersonnelListParams, PersonnelUpdatePayload } from '@/types'
 import {
   chunkEmpNos,
   parseEmpNos,
@@ -9,19 +9,56 @@ import {
   type PersonnelImportResult
 } from '@/utils/personnelImport'
 
+export type PersonnelFilters = Pick<
+  PersonnelListParams,
+  'q' | 'dept_l3_name' | 'dept_l4_name' | 'dept_l5_name' | 'dept_l6_name'
+>
+
 export const usePersonnelStore = defineStore('personnel', () => {
   const items = ref<PersonnelItem[]>([])
+  const total = ref(0)
+  const page = ref(1)
+  const pageSize = ref(50)
+  const filters = ref<PersonnelFilters>({})
   const loading = ref(false)
   const importing = ref(false)
 
-  const fetchList = async () => {
+  const fetchList = async (opts?: { page?: number; resetPage?: boolean }) => {
+    if (opts?.resetPage) {
+      page.value = 1
+    }
+    if (opts?.page !== undefined) {
+      page.value = opts.page
+    }
+
     loading.value = true
     try {
-      const data = await personnelApi.list()
+      const data = await personnelApi.list({
+        page: page.value,
+        page_size: pageSize.value,
+        ...filters.value
+      })
       items.value = data.items
+      total.value = data.total
+      page.value = data.page
+      pageSize.value = data.page_size
     } finally {
       loading.value = false
     }
+  }
+
+  const setFilters = async (next: PersonnelFilters) => {
+    filters.value = { ...next }
+    await fetchList({ resetPage: true })
+  }
+
+  const setPage = async (nextPage: number) => {
+    await fetchList({ page: nextPage })
+  }
+
+  const setPageSize = async (nextPageSize: number) => {
+    pageSize.value = nextPageSize
+    await fetchList({ resetPage: true })
   }
 
   const batchImport = async (
@@ -78,7 +115,7 @@ export const usePersonnelStore = defineStore('personnel', () => {
         reportProgress()
       }
 
-      await fetchList()
+      await fetchList({ resetPage: true })
 
       if (failures.length > 0) {
         await personnelApi.exportExceptions(failures)
@@ -104,7 +141,11 @@ export const usePersonnelStore = defineStore('personnel', () => {
     loading.value = true
     try {
       await personnelApi.remove(empNo)
-      await fetchList()
+      if (items.value.length === 1 && page.value > 1) {
+        await fetchList({ page: page.value - 1 })
+      } else {
+        await fetchList()
+      }
     } finally {
       loading.value = false
     }
@@ -116,9 +157,16 @@ export const usePersonnelStore = defineStore('personnel', () => {
 
   return {
     items,
+    total,
+    page,
+    pageSize,
+    filters,
     loading,
     importing,
     fetchList,
+    setFilters,
+    setPage,
+    setPageSize,
     batchImport,
     updatePersonnel,
     deletePersonnel,

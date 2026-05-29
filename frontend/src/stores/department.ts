@@ -1,22 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { departmentApi } from '@/api/department'
-import type { DepartmentNode, RootStatus } from '@/types'
+import type { RootStatus } from '@/types'
 
 export const useDepartmentStore = defineStore('department', () => {
-  const tree = ref<DepartmentNode[]>([])
   const rootStatus = ref<RootStatus>({ has_root: false })
   const loading = ref(false)
 
-  const fetchTree = async () => {
+  const fetchRootStatus = async () => {
+    rootStatus.value = await departmentApi.getRootStatus()
+  }
+
+  const refreshStatus = async () => {
     loading.value = true
     try {
-      const [status, treeData] = await Promise.all([
-        departmentApi.getRootStatus(),
-        departmentApi.getTree()
-      ])
-      rootStatus.value = status
-      tree.value = treeData
+      await fetchRootStatus()
     } finally {
       loading.value = false
     }
@@ -34,7 +32,7 @@ export const useDepartmentStore = defineStore('department', () => {
         parent_dept_code: parentDeptCode,
         name
       })
-      await fetchTree()
+      await fetchRootStatus()
     } finally {
       loading.value = false
     }
@@ -54,7 +52,7 @@ export const useDepartmentStore = defineStore('department', () => {
           name: item.name
         })
       }
-      await fetchTree()
+      await fetchRootStatus()
     } finally {
       loading.value = false
     }
@@ -64,7 +62,6 @@ export const useDepartmentStore = defineStore('department', () => {
     loading.value = true
     try {
       await departmentApi.update(deptCode, { name })
-      await fetchTree()
     } finally {
       loading.value = false
     }
@@ -74,17 +71,17 @@ export const useDepartmentStore = defineStore('department', () => {
     loading.value = true
     try {
       await departmentApi.remove(deptCode)
-      await fetchTree()
+      await fetchRootStatus()
     } finally {
       loading.value = false
     }
   }
 
   return {
-    tree,
     rootStatus,
     loading,
-    fetchTree,
+    fetchRootStatus,
+    refreshStatus,
     createDepartment,
     createDepartmentsBatch,
     updateDepartment,

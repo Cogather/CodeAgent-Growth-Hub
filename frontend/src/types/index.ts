@@ -85,6 +85,14 @@ export interface DepartmentNode {
   children: DepartmentNode[]
 }
 
+export interface DepartmentLazyNode {
+  dept_code: string
+  parent_dept_code: string | null
+  name: string
+  has_children: boolean
+  isLeaf?: boolean
+}
+
 export interface RootStatus {
   has_root: boolean
 }
@@ -111,6 +119,23 @@ export interface PersonnelItem {
 
 export interface PersonnelListResponse {
   items: PersonnelItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface PersonnelListParams {
+  page?: number
+  page_size?: number
+  q?: string
+  dept_l3_name?: string
+  dept_l4_name?: string
+  dept_l5_name?: string
+  dept_l6_name?: string
+}
+
+export interface PersonnelDistinctResponse {
+  values: string[]
 }
 
 export interface ImportFailureItem {

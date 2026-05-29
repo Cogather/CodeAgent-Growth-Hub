@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,6 +14,7 @@ from app.schemas import (
     ExportExceptionsRequest,
     PersonnelBatchImportRequest,
     PersonnelBatchImportResponse,
+    PersonnelDistinctResponse,
     PersonnelItem,
     PersonnelListResponse,
     PersonnelUpdate,
@@ -26,6 +30,10 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
+PERSONNEL_DISTINCT_FIELDS = frozenset(
+    {f"dept_l{i}_name" for i in range(3, DEPT_LEVELS + 1)}
+)
+
 
 def _to_personnel_item(p: MetaPersonnel) -> PersonnelItem:
     fields = {f"dept_l{i}_name": getattr(p, f"dept_l{i}_name") for i in range(1, DEPT_LEVELS + 1)}
@@ -38,10 +46,77 @@ def _to_personnel_item(p: MetaPersonnel) -> PersonnelItem:
     )
 
 
+def _apply_dept_name_filter(query, level: int, value: Optional[str]):
+    if value is None:
+        return query
+    column = getattr(MetaPersonnel, f"dept_l{level}_name")
+    if value == "":
+        return query.filter(or_(column.is_(None), column == ""))
+    return query.filter(column == value)
+
+
 @router.get("", response_model=PersonnelListResponse)
-def list_personnel(db: Session = Depends(get_db)):
-    personnel = db.query(MetaPersonnel).order_by(MetaPersonnel.emp_no).all()
-    return PersonnelListResponse(items=[_to_personnel_item(p) for p in personnel])
+def list_personnel(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    q: Optional[str] = Query(None, description="工号或姓名模糊搜索"),
+    dept_l3_name: Optional[str] = Query(None),
+    dept_l4_name: Optional[str] = Query(None),
+    dept_l5_name: Optional[str] = Query(None),
+    dept_l6_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(MetaPersonnel)
+
+    if q:
+        keyword = f"%{q.strip()}%"
+        query = query.filter(
+            or_(MetaPersonnel.emp_no.like(keyword), MetaPersonnel.name.like(keyword))
+        )
+
+    dept_filters = {
+        3: dept_l3_name,
+        4: dept_l4_name,
+        5: dept_l5_name,
+        6: dept_l6_name,
+    }
+    for level, value in dept_filters.items():
+        query = _apply_dept_name_filter(query, level, value)
+
+    total = query.count()
+    personnel = (
+        query.order_by(MetaPersonnel.emp_no)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return PersonnelListResponse(
+        items=[_to_personnel_item(p) for p in personnel],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/distinct/{field}", response_model=PersonnelDistinctResponse)
+def personnel_distinct_values(
+    field: str,
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    if field not in PERSONNEL_DISTINCT_FIELDS:
+        raise HTTPException(status_code=400, detail="不支持的筛选项")
+
+    column = getattr(MetaPersonnel, field)
+    rows = (
+        db.query(column)
+        .distinct()
+        .order_by(column)
+        .limit(limit)
+        .all()
+    )
+    values = [row[0] if row[0] is not None else "" for row in rows]
+    return PersonnelDistinctResponse(values=values)
 
 
 @router.post("/batch-import", response_model=PersonnelBatchImportResponse, dependencies=[Depends(require_admin)])

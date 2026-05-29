@@ -12,7 +12,7 @@
             <el-icon><Plus /></el-icon>
             创建根部门
           </el-button>
-          <el-button :loading="deptStore.loading" @click="deptStore.fetchTree()">
+          <el-button :loading="deptStore.loading" @click="handleRefresh">
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
@@ -32,10 +32,11 @@
 
       <el-tree
         v-else
-        :data="deptStore.tree"
-        :props="{ label: 'name', children: 'children' }"
+        :key="treeKey"
+        lazy
+        :load="loadNode"
+        :props="treeProps"
         node-key="dept_code"
-        default-expand-all
         :expand-on-click-node="false"
       >
         <template #default="{ node, data }">
@@ -54,7 +55,7 @@
                 type="danger"
                 link
                 size="small"
-                :disabled="data.children?.length > 0"
+                :disabled="data.has_children"
                 @click="handleDelete(data)"
               >
                 删除
@@ -127,9 +128,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type Node from 'element-plus/es/components/tree/src/model/node'
+import { departmentApi } from '@/api/department'
 import { useDepartmentStore } from '@/stores/department'
 import { useAuthStore } from '@/stores/auth'
-import type { DepartmentNode } from '@/types'
+import type { DepartmentLazyNode } from '@/types'
 
 const authStore = useAuthStore()
 const deptStore = useDepartmentStore()
@@ -139,6 +142,13 @@ const parentDeptCode = ref<string | null>(null)
 const editingDeptCode = ref<string | null>(null)
 const formName = ref('')
 const formDeptCode = ref('')
+const treeKey = ref(0)
+
+const treeProps = {
+  label: 'name',
+  children: 'children',
+  isLeaf: 'isLeaf'
+}
 
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'edit') return '重命名部门'
@@ -173,13 +183,37 @@ const parseBatchItems = (input: string): { name: string; dept_code: string }[] =
   return result
 }
 
+const reloadTree = () => {
+  treeKey.value += 1
+}
+
+const loadNode = async (node: Node, resolve: (data: DepartmentLazyNode[]) => void) => {
+  try {
+    const parentCode = node.level === 0 ? null : (node.data.dept_code as string)
+    const children = await departmentApi.getChildren(parentCode)
+    resolve(
+      children.map((item) => ({
+        ...item,
+        isLeaf: !item.has_children
+      }))
+    )
+  } catch {
+    resolve([])
+  }
+}
+
 const resetForm = () => {
   formName.value = ''
   formDeptCode.value = ''
 }
 
+const handleRefresh = async () => {
+  await deptStore.refreshStatus()
+  reloadTree()
+}
+
 onMounted(() => {
-  deptStore.fetchTree()
+  deptStore.fetchRootStatus()
 })
 
 const openCreate = (parentCode: string | null) => {
@@ -190,7 +224,7 @@ const openCreate = (parentCode: string | null) => {
   dialogVisible.value = true
 }
 
-const openEdit = (node: DepartmentNode) => {
+const openEdit = (node: DepartmentLazyNode) => {
   dialogMode.value = 'edit'
   editingDeptCode.value = node.dept_code
   formName.value = node.name
@@ -219,16 +253,18 @@ const handleSubmit = async () => {
       ElMessage.success('已更新')
     }
     dialogVisible.value = false
+    reloadTree()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '操作失败')
   }
 }
 
-const handleDelete = async (node: DepartmentNode) => {
+const handleDelete = async (node: DepartmentLazyNode) => {
   try {
     await ElMessageBox.confirm(`确定删除「${node.name}」？`, '删除确认', { type: 'warning' })
     await deptStore.deleteDepartment(node.dept_code)
     ElMessage.success('已删除')
+    reloadTree()
   } catch (e) {
     if (e !== 'cancel' && e instanceof Error) {
       ElMessage.error(e.message)

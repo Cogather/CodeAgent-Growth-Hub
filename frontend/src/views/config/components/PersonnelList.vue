@@ -73,20 +73,41 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="importDialogVisible" title="批量导入工号" width="480px" destroy-on-close @closed="importText = ''">
-      <el-input
-        v-model="importText"
-        type="textarea"
-        :rows="4"
-        placeholder="多个工号用逗号分隔，如：10001, 10002, 10003"
-        autofocus
-      />
-      <p class="form-hint">部门名称与编码由 HR 系统返回，直接写入人员表，不关联部门树</p>
+    <el-dialog
+      v-model="importDialogVisible"
+      title="批量导入工号"
+      width="480px"
+      destroy-on-close
+      :close-on-click-modal="!personnelStore.importing"
+      :show-close="!personnelStore.importing"
+      @closed="resetImportDialog"
+    >
+      <div v-if="personnelStore.importing" class="import-progress">
+        <p class="import-progress-title">正在从 HR 查询并写入，已完成的批次会自动保存</p>
+        <el-progress :percentage="importPercent" :stroke-width="16" />
+        <p class="import-progress-stats">
+          已处理 {{ importProgress.processed }} / {{ importProgress.total }} 个工号
+          <span v-if="importProgress.importedCount > 0">，成功 {{ importProgress.importedCount }}</span>
+          <span v-if="importProgress.failureCount > 0">，异常 {{ importProgress.failureCount }}</span>
+        </p>
+      </div>
+      <template v-else>
+        <el-input
+          v-model="importText"
+          type="textarea"
+          :rows="4"
+          placeholder="多个工号用逗号分隔，如：10001, 10002, 10003"
+          autofocus
+        />
+        <p class="form-hint">部门名称与编码由 HR 系统返回，直接写入人员表，不关联部门树</p>
+        <p class="form-hint">大批量工号将自动分批导入，可随时取消；已导入的批次不会回滚</p>
+      </template>
       <template #footer>
-        <el-button @click="importDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="personnelStore.loading" :disabled="!importText.trim()" @click="handleImport">
-          导入
-        </el-button>
+        <el-button v-if="personnelStore.importing" @click="handleCancelImport">取消导入</el-button>
+        <template v-else>
+          <el-button @click="importDialogVisible = false">取消</el-button>
+          <el-button type="primary" :disabled="!importText.trim()" @click="handleImport">导入</el-button>
+        </template>
       </template>
     </el-dialog>
 
@@ -123,6 +144,7 @@ import { useTableFilteredCount } from '@/composables/useTableFilteredCount'
 import { usePersonnelStore } from '@/stores/personnel'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
+import type { PersonnelImportProgress } from '@/utils/personnelImport'
 
 type FilterOption = { text: string; value: string }
 
@@ -134,7 +156,20 @@ const { totalCount, displayCount, onFilterChange, clearTableFilters: resetTableF
 const importDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const importText = ref('')
+const importAbortController = ref<AbortController | null>(null)
+const importProgress = reactive<PersonnelImportProgress>({
+  processed: 0,
+  total: 0,
+  importedCount: 0,
+  failureCount: 0,
+  cancelled: false
+})
 const editingEmpNo = ref('')
+
+const importPercent = computed(() => {
+  if (importProgress.total === 0) return 0
+  return Math.round((importProgress.processed / importProgress.total) * 100)
+})
 
 const emptyDeptFields = (): Record<string, string> => {
   const fields: Record<string, string> = {}
@@ -188,13 +223,44 @@ onMounted(() => {
   personnelStore.fetchList()
 })
 
+const resetImportDialog = () => {
+  importText.value = ''
+  importAbortController.value = null
+  importProgress.processed = 0
+  importProgress.total = 0
+  importProgress.importedCount = 0
+  importProgress.failureCount = 0
+  importProgress.cancelled = false
+}
+
 const handleImport = async () => {
   const text = importText.value.trim()
   if (!text) return
 
+  importAbortController.value = new AbortController()
+
   try {
-    const result = await personnelStore.batchImport(text)
+    const result = await personnelStore.batchImport(text, {
+      signal: importAbortController.value.signal,
+      onProgress: (progress) => {
+        importProgress.processed = progress.processed
+        importProgress.total = progress.total
+        importProgress.importedCount = progress.importedCount
+        importProgress.failureCount = progress.failureCount
+        importProgress.cancelled = progress.cancelled
+      }
+    })
     importDialogVisible.value = false
+
+    if (result.cancelled) {
+      const parts: string[] = [`已取消导入（已完成 ${result.imported_count} 人`]
+      if (result.failures.length > 0) {
+        parts.push(`，${result.failures.length} 条异常已导出`)
+      }
+      parts.push('）')
+      ElMessage.warning(parts.join(''))
+      return
+    }
 
     if (result.imported_count > 0) {
       ElMessage.success(`成功导入 ${result.imported_count} 人`)
@@ -207,6 +273,10 @@ const handleImport = async () => {
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '导入失败')
   }
+}
+
+const handleCancelImport = () => {
+  importAbortController.value?.abort()
 }
 
 const openEdit = (row: PersonnelItem) => {
@@ -282,6 +352,22 @@ const handleDelete = async (row: PersonnelItem) => {
   margin-top: 8px;
   font-size: 12px;
   color: #9ca3af;
+}
+
+.import-progress {
+  padding: 8px 0 4px;
+}
+
+.import-progress-title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.import-progress-stats {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .edit-form {

@@ -2,10 +2,17 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { personnelApi } from '@/api/personnel'
 import type { ImportFailureItem, PersonnelItem, PersonnelUpdatePayload } from '@/types'
+import {
+  chunkEmpNos,
+  parseEmpNos,
+  type PersonnelImportProgress,
+  type PersonnelImportResult
+} from '@/utils/personnelImport'
 
 export const usePersonnelStore = defineStore('personnel', () => {
   const items = ref<PersonnelItem[]>([])
   const loading = ref(false)
+  const importing = ref(false)
 
   const fetchList = async () => {
     loading.value = true
@@ -17,17 +24,69 @@ export const usePersonnelStore = defineStore('personnel', () => {
     }
   }
 
-  const batchImport = async (empNosText: string) => {
-    loading.value = true
+  const batchImport = async (
+    empNosText: string,
+    options?: {
+      onProgress?: (progress: PersonnelImportProgress) => void
+      signal?: AbortSignal
+    }
+  ): Promise<PersonnelImportResult> => {
+    const empNos = parseEmpNos(empNosText)
+    if (empNos.length === 0) {
+      return { imported_count: 0, failures: [], cancelled: false }
+    }
+
+    importing.value = true
+    const chunks = chunkEmpNos(empNos)
+    let importedCount = 0
+    const failures: ImportFailureItem[] = []
+    let processed = 0
+    let cancelled = false
+
+    const reportProgress = () => {
+      options?.onProgress?.({
+        processed,
+        total: empNos.length,
+        importedCount,
+        failureCount: failures.length,
+        cancelled
+      })
+    }
+
+    reportProgress()
+
     try {
-      const result = await personnelApi.batchImport(empNosText)
-      await fetchList()
-      if (result.failures.length > 0) {
-        await personnelApi.exportExceptions(result.failures)
+      for (const chunk of chunks) {
+        if (options?.signal?.aborted) {
+          cancelled = true
+          break
+        }
+
+        try {
+          const result = await personnelApi.batchImport(chunk.join(','), { signal: options?.signal })
+          importedCount += result.imported_count
+          failures.push(...result.failures)
+        } catch (error) {
+          if (options?.signal?.aborted) {
+            cancelled = true
+            break
+          }
+          throw error
+        }
+
+        processed += chunk.length
+        reportProgress()
       }
-      return result
+
+      await fetchList()
+
+      if (failures.length > 0) {
+        await personnelApi.exportExceptions(failures)
+      }
+
+      return { imported_count: importedCount, failures, cancelled }
     } finally {
-      loading.value = false
+      importing.value = false
     }
   }
 
@@ -58,6 +117,7 @@ export const usePersonnelStore = defineStore('personnel', () => {
   return {
     items,
     loading,
+    importing,
     fetchList,
     batchImport,
     updatePersonnel,

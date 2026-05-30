@@ -35,3 +35,25 @@ def build_import_exceptions_excel(failures: list[dict[str, Any]]) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def build_zone_import_exceptions_excel(failures: list[dict[str, Any]]) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "配置异常"
+
+    headers = ["工号", "异常原因"]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    for item in failures:
+        ws.append([item.get("emp_no", ""), item.get("reason", "")])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 48)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

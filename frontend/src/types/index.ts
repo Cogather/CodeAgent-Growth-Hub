@@ -176,17 +176,51 @@ export const DEPT_DISPLAY_LEVELS = [3, 4, 5, 6] as const
 
 export type NetworkZone = 'yellow' | 'blue' | 'green'
 
-export interface ZonePermissionItem {
-  emp_no: string
-  display_emp_no: string
-  name: string
+export interface ZonePermissionItem extends Pick<
+  PersonnelItem,
+  | 'emp_no'
+  | 'display_emp_no'
+  | 'name'
+  | 'dept_l1_name'
+  | 'dept_l1_code'
+  | 'dept_l2_name'
+  | 'dept_l2_code'
+  | 'dept_l3_name'
+  | 'dept_l3_code'
+  | 'dept_l4_name'
+  | 'dept_l4_code'
+  | 'dept_l5_name'
+  | 'dept_l5_code'
+  | 'dept_l6_name'
+  | 'dept_l6_code'
+  | 'dept_l7_name'
+  | 'dept_l7_code'
+> {
   models: string[]
+}
+
+export interface ZonePermissionListParams {
+  page?: number
+  page_size?: number
+  q?: string
+  dept_l3_name?: string
+  dept_l4_name?: string
+  dept_l5_name?: string
+  dept_l6_name?: string
 }
 
 export interface ZonePermissionListResponse {
   zone: NetworkZone
   zone_label: string
   items: ZonePermissionItem[]
+  total: number
+  total_all: number
+  page: number
+  page_size: number
+}
+
+export interface ZoneEmpNosResponse {
+  emp_nos: string[]
 }
 
 export interface ZoneImportFailureItem {

@@ -101,7 +101,7 @@ class ExportExceptionsRequest(BaseModel):
     failures: List[ImportFailureItem]
 
 
-class ZonePermissionItem(BaseModel):
+class ZonePermissionItem(PersonnelDeptFields):
     emp_no: str
     display_emp_no: str
     name: str
@@ -112,6 +112,18 @@ class ZonePermissionListResponse(BaseModel):
     zone: str
     zone_label: str
     items: List[ZonePermissionItem]
+    total: int
+    total_all: int
+    page: int
+    page_size: int
+
+
+class ZoneEmpNosResponse(BaseModel):
+    emp_nos: List[str]
+
+
+class ZoneExportFailuresRequest(BaseModel):
+    failures: List[ZoneImportFailureItem]
 
 
 class ZonePermissionBatchRequest(BaseModel):

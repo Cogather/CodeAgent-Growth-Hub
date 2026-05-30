@@ -16,54 +16,37 @@
               <el-icon><Refresh /></el-icon>
               刷新
             </el-button>
-            <el-button @click="clearTableFilters">清除筛选</el-button>
+            <el-button @click="clearFilters">清除筛选</el-button>
+            <el-input
+              v-model="searchText"
+              class="search-input"
+              clearable
+              placeholder="搜索工号或姓名"
+              @input="onSearchInput"
+              @clear="onSearchInput"
+            />
           </div>
           <p class="toolbar-hint">
-            展示黄/蓝/绿区白名单并集中的全部有权限人员，使用次数来自 Excel 导入并与名单合并呈现；未导入或导入中无记录的人员显示为 0。数据仅可通过 Excel 导入刷新，不支持在线编辑或删除。
+            展示黄区与绿区白名单并集中的有权限人员（同一工具），使用次数来自 Excel 导入；未导入或无记录显示为 0。蓝区暂不纳入本统计。
             <span v-if="store.importedAt" class="imported-at">最近导入：{{ store.importedAt }}</span>
           </p>
         </el-card>
 
         <el-card shadow="never" v-loading="store.loading" class="table-card">
           <div class="table-card-bar">
-            <TableRowCount :total="totalCount" :display="displayCount" />
+            <TableRowCount :total="store.totalAll" :display="store.total" />
           </div>
           <el-table
             ref="tableRef"
             :data="store.items"
             stripe
-            empty-text="暂无有权限人员，请先在配置中心录入人员并配置网络区域权限"
+            empty-text="暂无黄/绿区有权限人员，请先在配置中心录入人员并配置黄区或绿区权限"
             max-height="560"
-            :default-sort="{ prop: 'usage_count', order: 'descending' }"
             @filter-change="onFilterChange"
           >
-            <el-table-column
-              prop="emp_no"
-              label="工号"
-              column-key="emp_no"
-              :filters="empNoFilters"
-              :filter-method="filterByField('emp_no')"
-              filter-placement="bottom-end"
-              min-width="120"
-              fixed="left"
-            />
-            <el-table-column
-              prop="name"
-              label="姓名"
-              column-key="name"
-              :filters="nameFilters"
-              :filter-method="filterByField('name')"
-              filter-placement="bottom-end"
-              min-width="110"
-              fixed="left"
-            />
-            <el-table-column
-              prop="usage_count"
-              label="使用次数"
-              sortable
-              min-width="120"
-              align="right"
-            >
+            <el-table-column prop="emp_no" label="工号" min-width="120" fixed="left" />
+            <el-table-column prop="name" label="姓名" min-width="110" fixed="left" />
+            <el-table-column prop="usage_count" label="使用次数" min-width="120" align="right">
               <template #default="{ row }">
                 <span :class="{ 'usage-zero': row.usage_count === 0 }">{{ row.usage_count }}</span>
               </template>
@@ -75,7 +58,8 @@
               :label="`${level}级部门`"
               :column-key="`dept_l${level}_name`"
               :filters="deptFilters[deptIdx]"
-              :filter-method="filterByField(`dept_l${level}_name` as keyof UsageStatItem)"
+              :filtered-value="columnFilteredValue(level)"
+              :filter-multiple="false"
               filter-placement="bottom-end"
               min-width="130"
             >
@@ -84,17 +68,29 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-bar">
+            <el-pagination
+              :current-page="store.page"
+              :page-size="store.pageSize"
+              :total="store.total"
+              :page-sizes="[20, 50, 100, 200]"
+              layout="total, sizes, prev, pager, next, jumper"
+              background
+              @current-change="handlePageChange"
+              @size-change="handlePageSizeChange"
+            />
+          </div>
         </el-card>
       </el-tab-pane>
 
       <el-tab-pane label="使用分布" name="charts" lazy>
-        <p class="charts-hint">基于「使用数据」中的导入结果统计，切换部门查看有使用与未使用人员分布</p>
-        <el-card shadow="never">
+        <p class="charts-hint">基于当前筛选条件下的黄/绿区人员统计有使用与未使用分布（切换至本 Tab 时加载全量筛选结果）</p>
+        <el-card shadow="never" v-loading="chartsLoading">
           <UsageStatsCharts
             v-if="activeTab === 'charts'"
             ref="chartsRef"
-            :items="store.items"
-            :loading="store.loading"
+            :items="chartItems"
+            :loading="chartsLoading"
             @export-zero-usage="handleExportZeroUsage"
           />
         </el-card>
@@ -115,7 +111,7 @@
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
       </el-upload>
       <p class="form-hint">
-        Excel 须包含「工号」「使用次数」两列；导入将全量替换已有使用统计数据，不在权限名单中的工号会记入异常并导出
+        Excel 须包含「工号」「使用次数」两列；导入将全量替换已有使用统计数据。仅接受已在黄区或绿区白名单中的工号，其余记入异常并导出
       </p>
       <template #footer>
         <el-button @click="importDialogVisible = false">取消</el-button>
@@ -128,11 +124,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, toRef } from 'vue'
+import { defineAsyncComponent, onMounted, ref } from 'vue'
 import { ElMessage, type TabPaneName, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
 import TableRowCount from '@/components/TableRowCount.vue'
-import { useTableFilteredCount } from '@/composables/useTableFilteredCount'
-import { useUsageStatsStore } from '@/stores/usageStats'
+import { usageStatsApi } from '@/api/usageStats'
+import { useUsageStatsStore, type UsageFilters } from '@/stores/usageStats'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, type UsageStatItem } from '@/types'
 
@@ -143,48 +139,85 @@ type FilterOption = { text: string; value: string }
 const authStore = useAuthStore()
 const store = useUsageStatsStore()
 const tableRef = ref<TableInstance>()
-const { totalCount, displayCount, onFilterChange, clearTableFilters: resetTableFilters } =
-  useTableFilteredCount(toRef(store, 'items'))
 const chartsRef = ref<{ refreshCharts: () => void }>()
 const uploadRef = ref<UploadInstance>()
 const importDialogVisible = ref(false)
 const selectedFile = ref<File | null>(null)
 const activeTab = ref('data')
+const searchText = ref('')
+const deptFilters = ref<FilterOption[][]>(DEPT_DISPLAY_LEVELS.map(() => []))
+const chartItems = ref<UsageStatItem[]>([])
+const chartsLoading = ref(false)
 
-const buildFilters = (items: UsageStatItem[], field: keyof UsageStatItem): FilterOption[] => {
-  const values = new Set<string>()
-  for (const item of items) {
-    const raw = item[field]
-    values.add(typeof raw === 'string' ? raw : '')
+let searchTimer: number | undefined
+
+const columnFilteredValue = (level: number) => {
+  const key = `dept_l${level}_name` as keyof UsageFilters
+  const value = store.filters[key]
+  return value !== undefined ? [value] : undefined
+}
+
+const loadDeptFilters = async () => {
+  const results = await Promise.all(
+    DEPT_DISPLAY_LEVELS.map((level) => usageStatsApi.distinctValues(`dept_l${level}_name`))
+  )
+  deptFilters.value = results.map((res) =>
+    res.values.map((value) => ({ text: value || '（空）', value }))
+  )
+}
+
+const onSearchInput = () => {
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(() => {
+    const q = searchText.value.trim()
+    store.setFilters({ ...store.filters, q: q || undefined })
+  }, 300)
+}
+
+const onFilterChange = (tableFilters: Record<string, string[]>) => {
+  const next: UsageFilters = { ...store.filters }
+  for (const level of DEPT_DISPLAY_LEVELS) {
+    const key = `dept_l${level}_name` as keyof UsageFilters
+    const values = tableFilters[key]
+    if (!values || values.length === 0) {
+      delete next[key]
+    } else {
+      next[key] = values[0]
+    }
   }
-  return Array.from(values)
-    .sort((a, b) => a.localeCompare(b, 'zh-CN'))
-    .map((v) => ({ text: v || '（空）', value: v }))
+  store.setFilters(next)
 }
 
-const empNoFilters = computed(() => buildFilters(store.items, 'emp_no'))
-const nameFilters = computed(() => buildFilters(store.items, 'name'))
-const deptFilters = computed(() =>
-  DEPT_DISPLAY_LEVELS.map((level) => {
-    const field = `dept_l${level}_name` as keyof UsageStatItem
-    return buildFilters(store.items, field)
-  })
-)
-
-const filterByField = (field: keyof UsageStatItem) => {
-  return (value: string, row: UsageStatItem) => {
-    const cell = row[field]
-    return (cell ?? '') === value
-  }
+const clearFilters = async () => {
+  searchText.value = ''
+  tableRef.value?.clearFilter()
+  await store.setFilters({})
 }
 
-const clearTableFilters = () => {
-  resetTableFilters(tableRef.value)
+const handlePageChange = (page: number) => {
+  store.setPage(page)
 }
 
-const handleTabChange = (name: TabPaneName) => {
-  if (name === 'charts') {
+const handlePageSizeChange = (size: number) => {
+  store.setPageSize(size)
+}
+
+const loadChartItems = async () => {
+  chartsLoading.value = true
+  try {
+    chartItems.value = await store.fetchAllItems({ ...store.filters })
     chartsRef.value?.refreshCharts()
+  } catch (e) {
+    chartItems.value = []
+    ElMessage.error(e instanceof Error ? e.message : '加载图表数据失败')
+  } finally {
+    chartsLoading.value = false
+  }
+}
+
+const handleTabChange = async (name: TabPaneName) => {
+  if (name === 'charts') {
+    await loadChartItems()
   }
 }
 
@@ -216,6 +249,7 @@ const handleImport = async () => {
   try {
     const result = await store.importExcel(selectedFile.value)
     importDialogVisible.value = false
+    await loadDeptFilters()
 
     if (result.imported_count > 0) {
       ElMessage.success(`成功导入 ${result.imported_count} 条使用记录`)
@@ -231,8 +265,8 @@ const handleImport = async () => {
   }
 }
 
-onMounted(() => {
-  store.fetchList()
+onMounted(async () => {
+  await Promise.all([store.fetchList(), loadDeptFilters()])
 })
 </script>
 
@@ -252,6 +286,12 @@ onMounted(() => {
   gap: 8px;
   margin-bottom: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-input {
+  width: 220px;
+  margin-left: auto;
 }
 
 .toolbar-hint {
@@ -302,5 +342,11 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 10px;
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 </style>

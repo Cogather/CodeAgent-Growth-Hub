@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from sqlalchemy import func
+from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps.auth import get_current_user, require_admin
 from app.models import DEPT_LEVELS, MetaPersonnel, StatUsage
 from app.schemas import (
+    PersonnelDistinctResponse,
     UsageExportExceptionsRequest,
     UsageExportZeroUsageRequest,
     UsageImportFailureItem,
@@ -25,13 +27,15 @@ from app.services.usage_excel import (
     build_zero_usage_excel,
     parse_usage_excel,
 )
-from app.services.usage_roster import list_authorized_personnel
+from app.services.usage_roster import get_usage_roster_emp_nos
 
 router = APIRouter(
     prefix="/usage-stats",
     tags=["usage-stats"],
     dependencies=[Depends(get_current_user)],
 )
+
+USAGE_DISTINCT_FIELDS = frozenset({f"dept_l{i}_name" for i in range(3, DEPT_LEVELS + 1)})
 
 
 def _last_imported_at(db: Session) -> str | None:
@@ -49,34 +53,128 @@ def _personnel_dept_fields(person: MetaPersonnel) -> dict[str, str | None]:
     return fields
 
 
+def _apply_dept_name_filter(query, level: int, value: Optional[str]):
+    if value is None:
+        return query
+    column = getattr(MetaPersonnel, f"dept_l{level}_name")
+    if value == "":
+        return query.filter(or_(column.is_(None), column == ""))
+    return query.filter(column == value)
+
+
+def _roster_personnel_query(db: Session):
+    emp_nos = get_usage_roster_emp_nos(db)
+    if not emp_nos:
+        return None
+    return (
+        db.query(MetaPersonnel, StatUsage.usage_count)
+        .outerjoin(StatUsage, MetaPersonnel.emp_no == StatUsage.emp_no)
+        .filter(MetaPersonnel.emp_no.in_(emp_nos))
+    )
+
+
+def _to_usage_item(person: MetaPersonnel, usage_count: int | None) -> UsageStatItem:
+    return UsageStatItem(
+        emp_no=person.emp_no,
+        display_emp_no=display_emp_no(person.name, person.emp_no),
+        name=person.name,
+        usage_count=int(usage_count or 0),
+        **_personnel_dept_fields(person),
+    )
+
+
 def _build_merged_items(db: Session) -> list[UsageStatItem]:
-    personnel = list_authorized_personnel(db)
-    if not personnel:
+    """全量合并列表（导出零使用人员等场景）"""
+    query = _roster_personnel_query(db)
+    if query is None:
         return []
 
-    emp_nos = [p.emp_no for p in personnel]
-    usage_map = {
-        row.emp_no: row.usage_count
-        for row in db.query(StatUsage).filter(StatUsage.emp_no.in_(emp_nos)).all()
-    }
+    rows = query.order_by(
+        func.coalesce(StatUsage.usage_count, 0).desc(),
+        MetaPersonnel.emp_no,
+    ).all()
+    return [_to_usage_item(person, usage_count) for person, usage_count in rows]
 
-    items: list[UsageStatItem] = []
-    for person in personnel:
-        items.append(
-            UsageStatItem(
-                emp_no=person.emp_no,
-                display_emp_no=display_emp_no(person.name, person.emp_no),
-                name=person.name,
-                usage_count=usage_map.get(person.emp_no, 0),
-                **_personnel_dept_fields(person),
-            )
-        )
-    return items
+
+@router.get("/distinct/{field}", response_model=PersonnelDistinctResponse)
+def usage_distinct_values(
+    field: str,
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    if field not in USAGE_DISTINCT_FIELDS:
+        raise HTTPException(status_code=400, detail="不支持的筛选项")
+
+    emp_nos = get_usage_roster_emp_nos(db)
+    if not emp_nos:
+        return PersonnelDistinctResponse(values=[])
+
+    column = getattr(MetaPersonnel, field)
+    rows = (
+        db.query(column)
+        .filter(MetaPersonnel.emp_no.in_(emp_nos))
+        .distinct()
+        .order_by(column)
+        .limit(limit)
+        .all()
+    )
+    values = [row[0] if row[0] is not None else "" for row in rows]
+    return PersonnelDistinctResponse(values=values)
 
 
 @router.get("", response_model=UsageStatListResponse)
-def list_usage_stats(db: Session = Depends(get_db)):
-    return UsageStatListResponse(items=_build_merged_items(db), imported_at=_last_imported_at(db))
+def list_usage_stats(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    q: Optional[str] = Query(None, description="工号或姓名模糊搜索"),
+    dept_l3_name: Optional[str] = Query(None),
+    dept_l4_name: Optional[str] = Query(None),
+    dept_l5_name: Optional[str] = Query(None),
+    dept_l6_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    base_query = _roster_personnel_query(db)
+    if base_query is None:
+        return UsageStatListResponse(
+            items=[],
+            total=0,
+            total_all=0,
+            page=page,
+            page_size=page_size,
+            imported_at=_last_imported_at(db),
+        )
+
+    total_all = base_query.count()
+
+    query = base_query
+    if q:
+        keyword = f"%{q.strip()}%"
+        query = query.filter(
+            or_(MetaPersonnel.emp_no.like(keyword), MetaPersonnel.name.like(keyword))
+        )
+
+    for level, value in {3: dept_l3_name, 4: dept_l4_name, 5: dept_l5_name, 6: dept_l6_name}.items():
+        query = _apply_dept_name_filter(query, level, value)
+
+    total = query.count()
+    rows = (
+        query.order_by(
+            func.coalesce(StatUsage.usage_count, 0).desc(),
+            MetaPersonnel.emp_no,
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return UsageStatListResponse(
+        items=[_to_usage_item(person, usage_count) for person, usage_count in rows],
+        total=total,
+        total_all=total_all,
+        page=page,
+        page_size=page_size,
+        imported_at=_last_imported_at(db),
+    )
 
 
 @router.get("/template")
@@ -112,16 +210,16 @@ async def import_usage_stats(file: UploadFile = File(...), db: Session = Depends
         for item in parsed.failures
     ]
 
-    authorized = {p.emp_no for p in list_authorized_personnel(db)}
+    roster_emp_nos = get_usage_roster_emp_nos(db)
     valid_rows: list[StatUsage] = []
 
     for row in parsed.rows:
-        if row.emp_no not in authorized:
+        if row.emp_no not in roster_emp_nos:
             person = db.get(MetaPersonnel, row.emp_no)
             if person is None:
                 reason = "工号不在全员名单中"
             else:
-                reason = "工号未配置任何网络区域权限（黄/蓝/绿区）"
+                reason = "工号未配置黄区或绿区权限"
             failures.append(
                 UsageImportFailureItem(emp_no=row.emp_no, usage_count=row.usage_count, reason=reason)
             )

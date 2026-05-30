@@ -154,6 +154,10 @@ class UsageStatItem(PersonnelDeptFields):
 
 class UsageStatListResponse(BaseModel):
     items: List[UsageStatItem]
+    total: int
+    total_all: int
+    page: int
+    page_size: int
     imported_at: Optional[str] = None
 
 

@@ -260,8 +260,22 @@ export interface UsageStatItem extends Pick<
   usage_count: number
 }
 
+export interface UsageStatListParams {
+  page?: number
+  page_size?: number
+  q?: string
+  dept_l3_name?: string
+  dept_l4_name?: string
+  dept_l5_name?: string
+  dept_l6_name?: string
+}
+
 export interface UsageStatListResponse {
   items: UsageStatItem[]
+  total: number
+  total_all: number
+  page: number
+  page_size: number
   imported_at: string | null
 }
 

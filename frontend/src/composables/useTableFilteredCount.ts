@@ -34,7 +34,8 @@ export function useTableFilteredCount<T extends Record<string, unknown>>(data: R
   const isFiltered = computed(() => displayCount.value !== totalCount.value)
 
   const clearTableFilters = (tableRef: TableInstance | undefined) => {
-    tableRef?.clearFilter()
+    // 服务端筛选由 filtered-value 控制，勿调用 clearFilter()，否则易触发 parentNode 空引用
+    void tableRef
     resetFilters()
   }
 

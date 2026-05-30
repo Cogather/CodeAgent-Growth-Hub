@@ -32,6 +32,7 @@
         <TableRowCount :total="totalAll" :display="total" />
       </div>
       <el-table
+        :key="`${zone}-${tableKey}`"
         ref="tableRef"
         :data="items"
         stripe
@@ -140,6 +141,7 @@ import TableRowCount from '@/components/TableRowCount.vue'
 import { zonePermissionApi } from '@/api/zonePermission'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, ZONE_META, type NetworkZone, type ZonePermissionItem, type ZonePermissionListParams } from '@/types'
+import { mergeDeptFiltersFromTable } from '@/utils/serverTableFilters'
 
 type FilterOption = { text: string; value: string }
 type ZoneFilters = Pick<
@@ -168,6 +170,7 @@ const searchText = ref('')
 const tableRef = ref<TableInstance>()
 const deptFilters = ref<FilterOption[][]>(DEPT_DISPLAY_LEVELS.map(() => []))
 const permittedEmpNos = ref<string[]>([])
+const tableKey = ref(0)
 
 const batchForm = reactive({ empNos: '', models: '' })
 const editForm = reactive({ models: '' })
@@ -243,24 +246,17 @@ const onSearchInput = () => {
 }
 
 const onFilterChange = (tableFilters: Record<string, string[]>) => {
-  const next: ZoneFilters = { ...filters.value }
-  for (const level of DEPT_DISPLAY_LEVELS) {
-    const key = `dept_l${level}_name` as keyof ZoneFilters
-    const values = tableFilters[key]
-    if (!values || values.length === 0) {
-      delete next[key]
-    } else {
-      next[key] = values[0]
-    }
+  const { next, changed } = mergeDeptFiltersFromTable(tableFilters, filters.value)
+  if (changed) {
+    filters.value = next
+    fetchList({ resetPage: true })
   }
-  filters.value = next
-  fetchList({ resetPage: true })
 }
 
 const clearFilters = async () => {
   searchText.value = ''
   filters.value = {}
-  tableRef.value?.clearFilter()
+  tableKey.value += 1
   await fetchList({ resetPage: true })
 }
 
@@ -279,6 +275,7 @@ watch(
     filters.value = {}
     searchText.value = ''
     page.value = 1
+    tableKey.value += 1
     await Promise.all([fetchList(), loadDeptFilters()])
   }
 )

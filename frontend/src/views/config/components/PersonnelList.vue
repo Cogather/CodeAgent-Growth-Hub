@@ -30,6 +30,7 @@
         <TableRowCount :total="personnelStore.total" :display="personnelStore.total" />
       </div>
       <el-table
+        :key="tableKey"
         ref="tableRef"
         :data="personnelStore.items"
         stripe
@@ -148,6 +149,7 @@ import { usePersonnelStore, type PersonnelFilters } from '@/stores/personnel'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
 import type { PersonnelImportProgress } from '@/utils/personnelImport'
+import { mergeDeptFiltersFromTable } from '@/utils/serverTableFilters'
 
 type FilterOption = { text: string; value: string }
 
@@ -168,6 +170,7 @@ const importProgress = reactive<PersonnelImportProgress>({
 })
 const editingEmpNo = ref('')
 const deptFilters = ref<FilterOption[][]>(DEPT_DISPLAY_LEVELS.map(() => []))
+const tableKey = ref(0)
 
 let searchTimer: number | undefined
 
@@ -219,22 +222,15 @@ const onSearchInput = () => {
 }
 
 const onFilterChange = (filters: Record<string, string[]>) => {
-  const next: PersonnelFilters = { ...personnelStore.filters }
-  for (const level of DEPT_DISPLAY_LEVELS) {
-    const key = `dept_l${level}_name` as keyof PersonnelFilters
-    const values = filters[key]
-    if (!values || values.length === 0) {
-      delete next[key]
-    } else {
-      next[key] = values[0]
-    }
+  const { next, changed } = mergeDeptFiltersFromTable(filters, personnelStore.filters)
+  if (changed) {
+    personnelStore.setFilters(next)
   }
-  personnelStore.setFilters(next)
 }
 
 const clearFilters = async () => {
   searchText.value = ''
-  tableRef.value?.clearFilter()
+  tableKey.value += 1
   await personnelStore.setFilters({})
 }
 

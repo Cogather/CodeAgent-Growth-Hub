@@ -37,6 +37,7 @@
             <TableRowCount :total="store.totalAll" :display="store.total" />
           </div>
           <el-table
+            :key="tableKey"
             ref="tableRef"
             :data="store.items"
             stripe
@@ -124,13 +125,14 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref } from 'vue'
+import { defineAsyncComponent, nextTick, onMounted, ref } from 'vue'
 import { ElMessage, type TabPaneName, type TableInstance, type UploadFile, type UploadInstance } from 'element-plus'
 import TableRowCount from '@/components/TableRowCount.vue'
 import { usageStatsApi } from '@/api/usageStats'
 import { useUsageStatsStore, type UsageFilters } from '@/stores/usageStats'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, type UsageStatItem } from '@/types'
+import { mergeDeptFiltersFromTable } from '@/utils/serverTableFilters'
 
 const UsageStatsCharts = defineAsyncComponent(() => import('./components/UsageStatsCharts.vue'))
 
@@ -148,6 +150,7 @@ const searchText = ref('')
 const deptFilters = ref<FilterOption[][]>(DEPT_DISPLAY_LEVELS.map(() => []))
 const chartItems = ref<UsageStatItem[]>([])
 const chartsLoading = ref(false)
+const tableKey = ref(0)
 
 let searchTimer: number | undefined
 
@@ -175,22 +178,15 @@ const onSearchInput = () => {
 }
 
 const onFilterChange = (tableFilters: Record<string, string[]>) => {
-  const next: UsageFilters = { ...store.filters }
-  for (const level of DEPT_DISPLAY_LEVELS) {
-    const key = `dept_l${level}_name` as keyof UsageFilters
-    const values = tableFilters[key]
-    if (!values || values.length === 0) {
-      delete next[key]
-    } else {
-      next[key] = values[0]
-    }
+  const { next, changed } = mergeDeptFiltersFromTable(tableFilters, store.filters)
+  if (changed) {
+    store.setFilters(next)
   }
-  store.setFilters(next)
 }
 
 const clearFilters = async () => {
   searchText.value = ''
-  tableRef.value?.clearFilter()
+  tableKey.value += 1
   await store.setFilters({})
 }
 
@@ -206,6 +202,7 @@ const loadChartItems = async () => {
   chartsLoading.value = true
   try {
     chartItems.value = await store.fetchAllItems({ ...store.filters })
+    await nextTick()
     chartsRef.value?.refreshCharts()
   } catch (e) {
     chartItems.value = []
@@ -217,6 +214,7 @@ const loadChartItems = async () => {
 
 const handleTabChange = async (name: TabPaneName) => {
   if (name === 'charts') {
+    await nextTick()
     await loadChartItems()
   }
 }

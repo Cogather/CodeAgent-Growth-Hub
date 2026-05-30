@@ -28,6 +28,7 @@ from app.services.usage_excel import (
     build_zero_usage_excel,
     parse_usage_excel,
 )
+from app.services.focus_pdu import apply_focus_pdu_scope
 from app.services.usage_roster import get_usage_roster_emp_nos
 
 router = APIRouter(
@@ -63,15 +64,16 @@ def _apply_dept_name_filter(query, level: int, value: Optional[str]):
     return query.filter(column == value)
 
 
-def _roster_personnel_query(db: Session):
+def _roster_personnel_query(db: Session, *, focus_pdu_only: bool = False):
     emp_nos = get_usage_roster_emp_nos(db)
     if not emp_nos:
         return None
-    return (
+    query = (
         db.query(MetaPersonnel, StatUsage.usage_count)
         .outerjoin(StatUsage, MetaPersonnel.emp_no == StatUsage.emp_no)
         .filter(MetaPersonnel.emp_no.in_(emp_nos))
     )
+    return apply_focus_pdu_scope(query, db, enabled=focus_pdu_only)
 
 
 def _to_usage_item(person: MetaPersonnel, usage_count: int | None) -> UsageStatItem:
@@ -101,6 +103,7 @@ def _build_merged_items(db: Session) -> list[UsageStatItem]:
 def usage_distinct_values(
     field: str,
     limit: int = Query(200, ge=1, le=500),
+    focus_pdu_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     if field not in USAGE_DISTINCT_FIELDS:
@@ -111,14 +114,9 @@ def usage_distinct_values(
         return PersonnelDistinctResponse(values=[])
 
     column = getattr(MetaPersonnel, field)
-    rows = (
-        db.query(column)
-        .filter(MetaPersonnel.emp_no.in_(emp_nos))
-        .distinct()
-        .order_by(column)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(column).filter(MetaPersonnel.emp_no.in_(emp_nos))
+    query = apply_focus_pdu_scope(query, db, enabled=focus_pdu_only)
+    rows = query.distinct().order_by(column).limit(limit).all()
     values = [row[0] if row[0] is not None else "" for row in rows]
     return PersonnelDistinctResponse(values=values)
 
@@ -132,9 +130,10 @@ def list_usage_stats(
     dept_l4_name: Optional[str] = Query(None),
     dept_l5_name: Optional[str] = Query(None),
     dept_l6_name: Optional[str] = Query(None),
+    focus_pdu_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
-    base_query = _roster_personnel_query(db)
+    base_query = _roster_personnel_query(db, focus_pdu_only=focus_pdu_only)
     if base_query is None:
         return UsageStatListResponse(
             items=[],

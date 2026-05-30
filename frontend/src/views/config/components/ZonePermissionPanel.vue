@@ -141,6 +141,8 @@ import TableRowCount from '@/components/TableRowCount.vue'
 import { zonePermissionApi } from '@/api/zonePermission'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, ZONE_META, type NetworkZone, type ZonePermissionItem, type ZonePermissionListParams } from '@/types'
+import { useFocusPduReload } from '@/composables/useFocusPduReload'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import { mergeDeptFiltersFromTable } from '@/utils/serverTableFilters'
 
 type FilterOption = { text: string; value: string }
@@ -150,6 +152,7 @@ type ZoneFilters = Pick<
 >
 
 const authStore = useAuthStore()
+const focusPdu = useFocusPduStore()
 const ZonePermissionStatsDialog = defineAsyncComponent(() => import('./ZonePermissionStatsDialog.vue'))
 
 const props = defineProps<{ zone: NetworkZone }>()
@@ -192,8 +195,11 @@ const columnFilteredValue = (level: number) => {
 }
 
 const loadDeptFilters = async () => {
+  const pduOnly = focusPdu.enabled
   const results = await Promise.all(
-    DEPT_DISPLAY_LEVELS.map((level) => zonePermissionApi.distinctValues(props.zone, `dept_l${level}_name`))
+    DEPT_DISPLAY_LEVELS.map((level) =>
+      zonePermissionApi.distinctValues(props.zone, `dept_l${level}_name`, pduOnly)
+    )
   )
   deptFilters.value = results.map((res) =>
     res.values.map((value) => ({ text: value || '（空）', value }))
@@ -218,7 +224,8 @@ const fetchList = async (opts?: { page?: number; resetPage?: boolean }) => {
     const data = await zonePermissionApi.list(props.zone, {
       page: page.value,
       page_size: pageSize.value,
-      ...filters.value
+      ...filters.value,
+      focus_pdu_only: focusPdu.enabled || undefined
     })
     items.value = data.items
     total.value = data.total
@@ -282,6 +289,10 @@ watch(
 
 onMounted(async () => {
   await Promise.all([fetchList(), loadDeptFilters()])
+})
+
+useFocusPduReload(async () => {
+  await Promise.all([fetchList({ resetPage: true }), loadDeptFilters()])
 })
 
 const resetBatchForm = () => {

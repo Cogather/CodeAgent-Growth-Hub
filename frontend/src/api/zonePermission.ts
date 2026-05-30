@@ -10,6 +10,7 @@ import type {
   ZonePermissionListResponse,
   ZonePermissionUpdatePayload
 } from '@/types'
+import { appendFocusPduOnly } from '@/utils/focusPduQuery'
 
 const ZONE_REQUEST_TIMEOUT_MS = 60_000
 
@@ -22,6 +23,7 @@ const buildListQuery = (params: ZonePermissionListParams = {}) => {
     const key = `dept_l${level}_name` as const
     if (params[key] !== undefined) search.set(key, params[key]!)
   }
+  appendFocusPduOnly(search, Boolean(params.focus_pdu_only))
   const query = search.toString()
   return query ? `?${query}` : ''
 }
@@ -36,10 +38,14 @@ export const zonePermissionApi = {
   listEmpNos: (zone: NetworkZone) =>
     zoneFetch<ZoneEmpNosResponse>(`/zone-permissions/${zone}/emp-nos`),
 
-  distinctValues: (zone: NetworkZone, field: string) =>
-    zoneFetch<PersonnelDistinctResponse>(
-      `/zone-permissions/${zone}/distinct/${encodeURIComponent(field)}`
-    ),
+  distinctValues: (zone: NetworkZone, field: string, focusPduOnly = false) => {
+    const search = new URLSearchParams()
+    appendFocusPduOnly(search, focusPduOnly)
+    const q = search.toString()
+    return zoneFetch<PersonnelDistinctResponse>(
+      `/zone-permissions/${zone}/distinct/${encodeURIComponent(field)}${q ? `?${q}` : ''}`
+    )
+  },
 
   batchUpsert: (zone: NetworkZone, empNosText: string, modelsText: string) =>
     zoneFetch<ZonePermissionBatchResponse>(`/zone-permissions/${zone}/batch`, {

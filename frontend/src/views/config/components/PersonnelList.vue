@@ -149,11 +149,14 @@ import { usePersonnelStore, type PersonnelFilters } from '@/stores/personnel'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, DEPT_LEVELS, type PersonnelItem, type PersonnelUpdatePayload } from '@/types'
 import type { PersonnelImportProgress } from '@/utils/personnelImport'
+import { useFocusPduReload } from '@/composables/useFocusPduReload'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import { mergeDeptFiltersFromTable } from '@/utils/serverTableFilters'
 
 type FilterOption = { text: string; value: string }
 
 const authStore = useAuthStore()
+const focusPdu = useFocusPduStore()
 const personnelStore = usePersonnelStore()
 const tableRef = ref<TableInstance>()
 const importDialogVisible = ref(false)
@@ -203,7 +206,9 @@ const columnFilteredValue = (level: number) => {
 
 const loadDeptFilters = async () => {
   const results = await Promise.all(
-    DEPT_DISPLAY_LEVELS.map((level) => personnelApi.distinctValues(`dept_l${level}_name`))
+    DEPT_DISPLAY_LEVELS.map((level) =>
+      personnelApi.distinctValues(`dept_l${level}_name`, focusPdu.enabled)
+    )
   )
   deptFilters.value = results.map((res) =>
     res.values.map((value) => ({ text: value || '（空）', value }))
@@ -244,6 +249,10 @@ const handlePageSizeChange = (size: number) => {
 
 onMounted(async () => {
   await Promise.all([personnelStore.fetchList(), loadDeptFilters()])
+})
+
+useFocusPduReload(async () => {
+  await Promise.all([personnelStore.fetchList({ resetPage: true }), loadDeptFilters()])
 })
 
 const resetImportDialog = () => {

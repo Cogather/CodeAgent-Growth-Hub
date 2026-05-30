@@ -8,6 +8,7 @@ import type {
   PersonnelListResponse,
   PersonnelUpdatePayload
 } from '@/types'
+import { appendFocusPduOnly } from '@/utils/focusPduQuery'
 import { PERSONNEL_IMPORT_CHUNK_TIMEOUT_MS } from '@/utils/personnelImport'
 
 const buildListQuery = (params: PersonnelListParams = {}) => {
@@ -19,6 +20,7 @@ const buildListQuery = (params: PersonnelListParams = {}) => {
     const key = `dept_l${level}_name` as const
     if (params[key] !== undefined) search.set(key, params[key]!)
   }
+  appendFocusPduOnly(search, Boolean(params.focus_pdu_only))
   const query = search.toString()
   return query ? `?${query}` : ''
 }
@@ -47,8 +49,14 @@ export const personnelApi = {
     return { items: all, total }
   },
 
-  distinctValues: (field: string) =>
-    requestJson<PersonnelDistinctResponse>(`/personnel/distinct/${encodeURIComponent(field)}`),
+  distinctValues: (field: string, focusPduOnly = false) => {
+    const search = new URLSearchParams()
+    appendFocusPduOnly(search, focusPduOnly)
+    const q = search.toString()
+    return requestJson<PersonnelDistinctResponse>(
+      `/personnel/distinct/${encodeURIComponent(field)}${q ? `?${q}` : ''}`
+    )
+  },
 
   batchImport: (empNosText: string, options?: FetchOptions) =>
     requestJson<PersonnelBatchImportResponse>('/personnel/batch-import', {

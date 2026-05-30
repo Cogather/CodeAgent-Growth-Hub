@@ -132,6 +132,7 @@ export interface PersonnelListParams {
   dept_l4_name?: string
   dept_l5_name?: string
   dept_l6_name?: string
+  focus_pdu_only?: boolean
 }
 
 export interface PersonnelDistinctResponse {
@@ -207,6 +208,7 @@ export interface ZonePermissionListParams {
   dept_l4_name?: string
   dept_l5_name?: string
   dept_l6_name?: string
+  focus_pdu_only?: boolean
 }
 
 export interface ZonePermissionListResponse {
@@ -268,6 +270,26 @@ export interface UsageStatListParams {
   dept_l4_name?: string
   dept_l5_name?: string
   dept_l6_name?: string
+  focus_pdu_only?: boolean
+}
+
+export interface FocusPduItem {
+  dept_code: string
+  name: string
+  alias?: string | null
+  sort_order: number
+  path: string[]
+  depth: number
+}
+
+export interface FocusPduListResponse {
+  items: FocusPduItem[]
+  target_depth: number
+}
+
+export interface FocusPduCreatePayload {
+  dept_code: string
+  alias?: string
 }
 
 export interface UsageStatListResponse {

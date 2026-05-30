@@ -22,6 +22,7 @@ from app.schemas import (
 )
 from app.services.excel_export import build_zone_import_exceptions_excel
 from app.services.hr_lookup import display_emp_no
+from app.services.focus_pdu import apply_focus_pdu_scope
 from app.services.zone_config import ZONES, get_zone
 
 router = APIRouter(
@@ -100,6 +101,7 @@ def zone_distinct_values(
     zone: str,
     field: str,
     limit: int = Query(200, ge=1, le=500),
+    focus_pdu_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     try:
@@ -111,14 +113,9 @@ def zone_distinct_values(
         raise HTTPException(status_code=400, detail="不支持的筛选项")
 
     column = getattr(MetaPersonnel, field)
-    rows = (
-        db.query(column)
-        .join(model_cls, model_cls.emp_no == MetaPersonnel.emp_no)
-        .distinct()
-        .order_by(column)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(column).join(model_cls, model_cls.emp_no == MetaPersonnel.emp_no)
+    query = apply_focus_pdu_scope(query, db, enabled=focus_pdu_only)
+    rows = query.distinct().order_by(column).limit(limit).all()
     values = [row[0] if row[0] is not None else "" for row in rows]
     return PersonnelDistinctResponse(values=values)
 
@@ -133,6 +130,7 @@ def list_zone_permissions(
     dept_l4_name: Optional[str] = Query(None),
     dept_l5_name: Optional[str] = Query(None),
     dept_l6_name: Optional[str] = Query(None),
+    focus_pdu_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     try:
@@ -142,6 +140,7 @@ def list_zone_permissions(
 
     model_cls = cfg.model_class
     base_query = _zone_joined_query(db, model_cls)
+    base_query = apply_focus_pdu_scope(base_query, db, enabled=focus_pdu_only)
     total_all = base_query.count()
 
     query = base_query

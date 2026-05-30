@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { personnelApi } from '@/api/personnel'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import type { ImportFailureItem, PersonnelItem, PersonnelListParams, PersonnelUpdatePayload } from '@/types'
 import {
   chunkEmpNos,
@@ -33,10 +34,12 @@ export const usePersonnelStore = defineStore('personnel', () => {
 
     loading.value = true
     try {
+      const focusPdu = useFocusPduStore()
       const data = await personnelApi.list({
         page: page.value,
         page_size: pageSize.value,
-        ...filters.value
+        ...filters.value,
+        focus_pdu_only: focusPdu.enabled || undefined
       })
       items.value = data.items
       total.value = data.total

@@ -22,6 +22,7 @@ from app.schemas import (
 from app.services.excel_export import build_import_exceptions_excel
 from app.services.hr_lookup import display_emp_no, name_to_initial
 from app.services.personnel_fields import apply_dept_fields_to_model, model_dept_fields_from_payload
+from app.services.focus_pdu import apply_focus_pdu_scope
 from app.services.personnel_import import import_personnel_batch, parse_emp_nos
 
 router = APIRouter(
@@ -64,9 +65,11 @@ def list_personnel(
     dept_l4_name: Optional[str] = Query(None),
     dept_l5_name: Optional[str] = Query(None),
     dept_l6_name: Optional[str] = Query(None),
+    focus_pdu_only: bool = Query(False, description="为 true 时仅返回重点关注 PDU 范围内的人员"),
     db: Session = Depends(get_db),
 ):
     query = db.query(MetaPersonnel)
+    query = apply_focus_pdu_scope(query, db, enabled=focus_pdu_only)
 
     if q:
         keyword = f"%{q.strip()}%"
@@ -102,19 +105,16 @@ def list_personnel(
 def personnel_distinct_values(
     field: str,
     limit: int = Query(200, ge=1, le=500),
+    focus_pdu_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     if field not in PERSONNEL_DISTINCT_FIELDS:
         raise HTTPException(status_code=400, detail="不支持的筛选项")
 
     column = getattr(MetaPersonnel, field)
-    rows = (
-        db.query(column)
-        .distinct()
-        .order_by(column)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(column)
+    query = apply_focus_pdu_scope(query, db, enabled=focus_pdu_only)
+    rows = query.distinct().order_by(column).limit(limit).all()
     values = [row[0] if row[0] is not None else "" for row in rows]
     return PersonnelDistinctResponse(values=values)
 

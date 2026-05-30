@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { usageStatsApi } from '@/api/usageStats'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import type { UsageImportFailureItem, UsageStatItem, UsageStatListParams } from '@/types'
 
 export type UsageFilters = Pick<
@@ -24,10 +25,12 @@ export const useUsageStatsStore = defineStore('usageStats', () => {
 
     loading.value = true
     try {
+      const focusPdu = useFocusPduStore()
       const data = await usageStatsApi.list({
         page: page.value,
         page_size: pageSize.value,
-        ...filters.value
+        ...filters.value,
+        focus_pdu_only: focusPdu.enabled || undefined
       })
       items.value = data.items
       total.value = data.total
@@ -55,7 +58,11 @@ export const useUsageStatsStore = defineStore('usageStats', () => {
   }
 
   async function fetchAllItems(params: UsageFilters = {}) {
-    const data = await usageStatsApi.listAll(params)
+    const focusPdu = useFocusPduStore()
+    const data = await usageStatsApi.listAll({
+      ...params,
+      focus_pdu_only: focusPdu.enabled || undefined
+    })
     importedAt.value = data.imported_at
     return data.items
   }

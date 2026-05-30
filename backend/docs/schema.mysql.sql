@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS meta_department (
     INDEX idx_dept_parent (parent_dept_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS meta_focus_pdu (
+    dept_code     VARCHAR(64) NOT NULL PRIMARY KEY,
+    alias         VARCHAR(128) NULL,
+    sort_order    INT NOT NULL DEFAULT 0,
+    CONSTRAINT fk_focus_pdu_dept FOREIGN KEY (dept_code) REFERENCES meta_department(dept_code) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS meta_personnel (
     emp_no          VARCHAR(64) PRIMARY KEY,
     name            VARCHAR(128) NOT NULL,

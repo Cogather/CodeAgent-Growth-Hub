@@ -5,7 +5,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database import engine
 from app.db_init import init_tables
-from app.routers import auth, departments, personnel, usage_stats, users, zone_permissions
+from app.routers import auth, departments, focus_pdu, personnel, usage_stats, users, zone_permissions
 
 init_tables()
 
@@ -27,6 +27,7 @@ app.include_router(departments.router, prefix="/api")
 app.include_router(personnel.router, prefix="/api")
 app.include_router(zone_permissions.router, prefix="/api")
 app.include_router(usage_stats.router, prefix="/api")
+app.include_router(focus_pdu.router, prefix="/api")
 
 
 @app.get("/api/health")

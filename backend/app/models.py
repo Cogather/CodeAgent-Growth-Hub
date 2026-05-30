@@ -34,6 +34,20 @@ class MetaDepartment(Base):
     )
 
 
+class MetaFocusPdu(Base):
+    """重点关注 PDU — 组织树固定层级（默认第 4 层）节点，供全局视角筛选"""
+
+    __tablename__ = "meta_focus_pdu"
+
+    dept_code: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("meta_department.dept_code", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    alias: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 class MetaPersonnel(Base):
     """人员名单 — 工号主键，七级部门名称/编码平铺存储"""
 

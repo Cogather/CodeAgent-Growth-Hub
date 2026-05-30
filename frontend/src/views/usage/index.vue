@@ -145,6 +145,8 @@ import { usageStatsApi } from '@/api/usageStats'
 import { useUsageStatsStore, type UsageFilters } from '@/stores/usageStats'
 import { useAuthStore } from '@/stores/auth'
 import { DEPT_DISPLAY_LEVELS, type UsageStatItem } from '@/types'
+import { useFocusPduReload } from '@/composables/useFocusPduReload'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import { mergeDeptFiltersFromTable } from '@/utils/serverTableFilters'
 
 const UsageStatsCharts = defineAsyncComponent(() => import('./components/UsageStatsCharts.vue'))
@@ -152,6 +154,7 @@ const UsageStatsCharts = defineAsyncComponent(() => import('./components/UsageSt
 type FilterOption = { text: string; value: string }
 
 const authStore = useAuthStore()
+const focusPdu = useFocusPduStore()
 const store = useUsageStatsStore()
 const tableRef = ref<TableInstance>()
 const chartsRef = ref<{ refreshCharts: () => void }>()
@@ -175,7 +178,7 @@ const columnFilteredValue = (level: number) => {
 
 const loadDeptFilters = async () => {
   const results = await Promise.all(
-    DEPT_DISPLAY_LEVELS.map((level) => usageStatsApi.distinctValues(`dept_l${level}_name`))
+    DEPT_DISPLAY_LEVELS.map((level) => usageStatsApi.distinctValues(`dept_l${level}_name`, focusPdu.enabled))
   )
   deptFilters.value = results.map((res) =>
     res.values.map((value) => ({ text: value || '（空）', value }))
@@ -278,6 +281,13 @@ const handleImport = async () => {
 
 onMounted(async () => {
   await Promise.all([store.fetchList(), loadDeptFilters()])
+})
+
+useFocusPduReload(async () => {
+  await Promise.all([store.fetchList({ resetPage: true }), loadDeptFilters()])
+  if (activeTab.value === 'charts') {
+    await loadChartItems()
+  }
 })
 </script>
 

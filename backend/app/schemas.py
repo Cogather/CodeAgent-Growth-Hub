@@ -233,3 +233,22 @@ class SysUserCreateResponse(BaseModel):
 
 class SysUserResetPasswordResponse(BaseModel):
     temporary_password: str
+
+
+class FocusPduItem(BaseModel):
+    dept_code: str
+    name: str
+    alias: Optional[str] = None
+    sort_order: int = 0
+    path: List[str] = []
+    depth: int = 0
+
+
+class FocusPduListResponse(BaseModel):
+    items: List[FocusPduItem]
+    target_depth: int = 4
+
+
+class FocusPduCreate(BaseModel):
+    dept_code: str = Field(..., min_length=1, max_length=64)
+    alias: Optional[str] = Field(None, max_length=128)

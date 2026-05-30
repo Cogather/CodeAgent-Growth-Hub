@@ -60,6 +60,27 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <div class="focus-pdu-bar">
+            <el-switch
+              v-model="pduPerspectiveOn"
+              inline-prompt
+              active-text="PDU"
+              inactive-text="全部"
+              :disabled="focusPdu.loading || (focusPdu.items.length === 0 && !focusPdu.enabled)"
+              @change="onPduPerspectiveChange"
+            />
+            <el-tooltip
+              v-if="focusPdu.items.length > 0"
+              :content="focusPdu.items.map((i) => focusPdu.displayName(i)).join('、')"
+              placement="bottom"
+            >
+              <span class="focus-pdu-label">{{ focusPdu.label }}</span>
+            </el-tooltip>
+            <span v-else class="focus-pdu-label muted">未配置关注 PDU</span>
+            <el-button v-if="authStore.isAdmin" link type="primary" @click="manageDialogVisible = true">
+              管理
+            </el-button>
+          </div>
           <span class="header-time">{{ currentTime }}</span>
           <el-dropdown @command="handleCommand">
             <div class="user-card">
@@ -86,19 +107,27 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <FocusPduManageDialog v-if="authStore.isAdmin" v-model="manageDialogVisible" />
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
+import FocusPduManageDialog from '@/components/FocusPduManageDialog.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import { APP_MODULES, APP_NAME } from '@/config/modules'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const focusPdu = useFocusPduStore()
 const isCollapsed = ref(false)
+const manageDialogVisible = ref(false)
+const pduPerspectiveOn = ref(focusPdu.enabled)
 
 const activeMenu = computed(() => route.path)
 const currentTitle = computed(() => route.meta.title as string | undefined)
@@ -118,9 +147,29 @@ const updateTime = () => {
   })
 }
 
-onMounted(() => {
+watch(
+  () => focusPdu.enabled,
+  (value) => {
+    pduPerspectiveOn.value = value
+  }
+)
+
+const onPduPerspectiveChange = (value: string | number | boolean) => {
+  const on = Boolean(value)
+  if (on && focusPdu.items.length === 0) {
+    ElMessage.warning('请先在「管理」中添加第 4 层关注 PDU')
+    pduPerspectiveOn.value = false
+    return
+  }
+  focusPdu.setEnabled(on)
+  window.dispatchEvent(new CustomEvent('focus-pdu-changed'))
+}
+
+onMounted(async () => {
   updateTime()
   timeInterval = window.setInterval(updateTime, 60000)
+  await focusPdu.fetchList()
+  pduPerspectiveOn.value = focusPdu.enabled
 })
 
 onUnmounted(() => {
@@ -223,6 +272,28 @@ const handleCommand = async (command: string) => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.focus-pdu-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #f3f4f6;
+}
+
+.focus-pdu-label {
+  font-size: 12px;
+  color: #4b5563;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-pdu-label.muted {
+  color: #9ca3af;
 }
 
 .header-time {

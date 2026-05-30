@@ -1,4 +1,5 @@
 import { downloadBlob, requestJson, type FetchOptions } from '@/api/client'
+import { appendFocusPduOnly } from '@/utils/focusPduQuery'
 import type {
   UsageImportFailureItem,
   UsageStatImportResponse,
@@ -24,6 +25,7 @@ const buildListQuery = (params: UsageStatListParams = {}) => {
     const key = `dept_l${level}_name` as const
     if (params[key] !== undefined) search.set(key, params[key]!)
   }
+  appendFocusPduOnly(search, Boolean(params.focus_pdu_only))
   const query = search.toString()
   return query ? `?${query}` : ''
 }
@@ -54,8 +56,14 @@ export const usageStatsApi = {
     return { items: all, total, imported_at: importedAt }
   },
 
-  distinctValues: (field: string) =>
-    usageRequest<{ values: string[] }>(`/usage-stats/distinct/${encodeURIComponent(field)}`),
+  distinctValues: (field: string, focusPduOnly = false) => {
+    const search = new URLSearchParams()
+    appendFocusPduOnly(search, focusPduOnly)
+    const q = search.toString()
+    return usageRequest<{ values: string[] }>(
+      `/usage-stats/distinct/${encodeURIComponent(field)}${q ? `?${q}` : ''}`
+    )
+  },
 
   importExcel: async (file: File) => {
     const form = new FormData()

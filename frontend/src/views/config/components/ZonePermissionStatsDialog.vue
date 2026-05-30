@@ -75,6 +75,7 @@ import { BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ElTree } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { personnelApi } from '@/api/personnel'
 import { departmentApi } from '@/api/department'
 import type { DepartmentNode, NetworkZone, PersonnelItem } from '@/types'
@@ -274,6 +275,10 @@ const loadData = async () => {
     deptTree.value = tree
     await selectDefaultNode()
     await renderCharts()
+  } catch (e) {
+    personnel.value = []
+    deptTree.value = []
+    ElMessage.error(e instanceof Error ? e.message : '加载统计数据失败')
   } finally {
     loading.value = false
   }

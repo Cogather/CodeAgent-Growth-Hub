@@ -56,13 +56,15 @@ def list_zone_permissions(zone: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="未知网络区域")
 
     model_cls = cfg.model_class
-    rows = db.query(model_cls).order_by(model_cls.emp_no).all()
+    rows = (
+        db.query(model_cls, MetaPersonnel)
+        .join(MetaPersonnel, model_cls.emp_no == MetaPersonnel.emp_no)
+        .order_by(model_cls.emp_no)
+        .all()
+    )
     items: list[ZonePermissionItem] = []
 
-    for row in rows:
-        person = db.get(MetaPersonnel, row.emp_no)
-        if not person:
-            continue
+    for row, person in rows:
         items.append(
             ZonePermissionItem(
                 emp_no=row.emp_no,
@@ -97,19 +99,29 @@ def batch_upsert_zone_permissions(
     upserted_count = 0
     failures: list[ZoneImportFailureItem] = []
 
+    personnel_set = {
+        row[0]
+        for row in db.query(MetaPersonnel.emp_no).filter(MetaPersonnel.emp_no.in_(emp_nos)).all()
+    }
+    existing_map = {
+        row.emp_no: row
+        for row in db.query(model_cls).filter(model_cls.emp_no.in_(emp_nos)).all()
+    }
+
     for emp_no in emp_nos:
-        person = db.get(MetaPersonnel, emp_no)
-        if not person:
+        if emp_no not in personnel_set:
             failures.append(
                 ZoneImportFailureItem(emp_no=emp_no, reason="工号不在全员名单中，请先录入人员")
             )
             continue
 
-        existing = db.get(model_cls, emp_no)
+        existing = existing_map.get(emp_no)
         if existing:
             existing.models = models_str
         else:
-            db.add(model_cls(emp_no=emp_no, models=models_str))
+            new_row = model_cls(emp_no=emp_no, models=models_str)
+            db.add(new_row)
+            existing_map[emp_no] = new_row
         upserted_count += 1
 
     if upserted_count:

@@ -128,6 +128,9 @@ const fetchList = async () => {
     const data = await zonePermissionApi.list(props.zone)
     items.value = data.items
     modelHint.value = MODEL_HINTS[props.zone]
+  } catch (e) {
+    items.value = []
+    ElMessage.error(e instanceof Error ? e.message : '加载白名单失败')
   } finally {
     loading.value = false
   }

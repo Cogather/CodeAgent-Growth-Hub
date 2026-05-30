@@ -50,7 +50,10 @@ async function fetchWithTimeout(url: string, options?: FetchOptions): Promise<Re
       if (options?.signal?.aborted) {
         throw new ApiError('请求已取消', 0)
       }
-      throw new ApiError('无法连接后端服务，请确认后端已启动', 0)
+      throw new ApiError(`请求超时（${Math.round(timeoutMs / 1000)} 秒），请稍后重试`, 0)
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError('无法连接后端服务，请确认后端已启动（默认端口 9321）', 0)
     }
     throw new ApiError('网络请求失败，请检查前后端是否均已启动', 0)
   } finally {

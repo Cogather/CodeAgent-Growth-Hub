@@ -32,9 +32,12 @@ export const personnelApi = {
     const all: PersonnelItem[] = []
     let page = 1
     let total = 0
+    const listTimeoutMs = 120_000
 
     while (true) {
-      const data = await personnelApi.list({ ...params, page, page_size: pageSize })
+      const data = await requestJson<PersonnelListResponse>(`/personnel${buildListQuery({ ...params, page, page_size: pageSize })}`, {
+        timeoutMs: listTimeoutMs
+      })
       total = data.total
       all.push(...data.items)
       if (all.length >= total || data.items.length === 0) break

@@ -8,22 +8,22 @@
     </div>
 
     <el-tabs v-model="activeTab" class="config-tabs">
-      <el-tab-pane label="组织架构" name="departments">
+      <el-tab-pane label="组织架构" name="departments" lazy>
         <DepartmentTree />
       </el-tab-pane>
-      <el-tab-pane label="人员名单" name="personnel">
+      <el-tab-pane label="人员名单" name="personnel" lazy>
         <PersonnelList />
       </el-tab-pane>
-      <el-tab-pane label="黄区白名单" name="zone-yellow">
+      <el-tab-pane label="黄区白名单" name="zone-yellow" lazy>
         <ZonePermissionPanel zone="yellow" />
       </el-tab-pane>
-      <el-tab-pane label="蓝区白名单" name="zone-blue">
+      <el-tab-pane label="蓝区白名单" name="zone-blue" lazy>
         <ZonePermissionPanel zone="blue" />
       </el-tab-pane>
-      <el-tab-pane label="绿区白名单" name="zone-green">
+      <el-tab-pane label="绿区白名单" name="zone-green" lazy>
         <ZonePermissionPanel zone="green" />
       </el-tab-pane>
-      <el-tab-pane v-if="authStore.isAdmin" label="系统用户" name="users">
+      <el-tab-pane v-if="authStore.isAdmin" label="系统用户" name="users" lazy>
         <SysUsersPanel />
       </el-tab-pane>
     </el-tabs>

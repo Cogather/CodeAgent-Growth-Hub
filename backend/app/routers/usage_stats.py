@@ -22,6 +22,7 @@ from app.schemas import (
 from app.services.dept_utils import person_matches_dept_path
 from app.services.hr_lookup import display_emp_no
 from app.services.usage_excel import (
+    ParsedUsageRow,
     build_usage_import_failures_excel,
     build_usage_template_excel,
     build_zero_usage_excel,
@@ -212,19 +213,30 @@ async def import_usage_stats(file: UploadFile = File(...), db: Session = Depends
 
     roster_emp_nos = get_usage_roster_emp_nos(db)
     valid_rows: list[StatUsage] = []
+    not_on_roster: list[ParsedUsageRow] = []
 
     for row in parsed.rows:
         if row.emp_no not in roster_emp_nos:
-            person = db.get(MetaPersonnel, row.emp_no)
-            if person is None:
+            not_on_roster.append(row)
+            continue
+        valid_rows.append(StatUsage(emp_no=row.emp_no, usage_count=row.usage_count))
+
+    if not_on_roster:
+        missing_emp_nos = [row.emp_no for row in not_on_roster]
+        existing_emp_nos = {
+            emp_no
+            for (emp_no,) in db.query(MetaPersonnel.emp_no)
+            .filter(MetaPersonnel.emp_no.in_(missing_emp_nos))
+            .all()
+        }
+        for row in not_on_roster:
+            if row.emp_no not in existing_emp_nos:
                 reason = "工号不在全员名单中"
             else:
                 reason = "工号未配置黄区或绿区权限"
             failures.append(
                 UsageImportFailureItem(emp_no=row.emp_no, usage_count=row.usage_count, reason=reason)
             )
-            continue
-        valid_rows.append(StatUsage(emp_no=row.emp_no, usage_count=row.usage_count))
 
     if not valid_rows:
         if not parsed.rows and not failures:
@@ -235,9 +247,10 @@ async def import_usage_stats(file: UploadFile = File(...), db: Session = Depends
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.query(StatUsage).delete()
-    for row in valid_rows:
-        row.imported_at = now
-        db.add(row)
+    mappings = [
+        {"emp_no": row.emp_no, "usage_count": row.usage_count, "imported_at": now} for row in valid_rows
+    ]
+    db.bulk_insert_mappings(StatUsage, mappings)
     db.commit()
 
     return UsageStatImportResponse(imported_count=len(valid_rows), failures=failures)

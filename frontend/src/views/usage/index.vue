@@ -47,7 +47,7 @@
           >
             <el-table-column prop="emp_no" label="工号" min-width="120" fixed="left" />
             <el-table-column prop="name" label="姓名" min-width="110" fixed="left" />
-            <el-table-column prop="usage_count" label="使用次数" min-width="120" align="right">
+            <el-table-column prop="usage_count" label="使用次数" min-width="100" align="right">
               <template #default="{ row }">
                 <span :class="{ 'usage-zero': row.usage_count === 0 }">{{ row.usage_count }}</span>
               </template>

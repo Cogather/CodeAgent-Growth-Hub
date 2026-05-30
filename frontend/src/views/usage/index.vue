@@ -45,9 +45,21 @@
             max-height="560"
             @filter-change="onFilterChange"
           >
-            <el-table-column prop="emp_no" label="工号" min-width="120" fixed="left" />
-            <el-table-column prop="name" label="姓名" min-width="110" fixed="left" />
-            <el-table-column prop="usage_count" label="使用次数" min-width="100" align="right">
+            <el-table-column
+              prop="emp_no"
+              label="工号"
+              width="100"
+              fixed="left"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="name"
+              label="姓名"
+              width="72"
+              fixed="left"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="usage_count" label="使用次数" width="84" align="right" header-align="right">
               <template #default="{ row }">
                 <span :class="{ 'usage-zero': row.usage_count === 0 }">{{ row.usage_count }}</span>
               </template>
@@ -63,6 +75,7 @@
               :filter-multiple="false"
               filter-placement="bottom-end"
               min-width="130"
+              show-overflow-tooltip
             >
               <template #default="{ row }">
                 {{ row[`dept_l${level}_name` as keyof UsageStatItem] || '—' }}

@@ -8,8 +8,8 @@ from sqlalchemy.orm import Query, Session
 from app.models import MetaFocusPdu, MetaPersonnel
 from app.services.dept_utils import get_dept_path
 
-# 关注节点在组织树中的深度（根=1），与产品约定「四级 PDU」一致
-FOCUS_PDU_TREE_DEPTH = 4
+# 关注节点在组织树中的深度（根=1），与产品约定「三级 PDU」一致
+FOCUS_PDU_TREE_DEPTH = 3
 
 
 def get_focus_pdu_depth(db: Session, dept_code: str) -> int:

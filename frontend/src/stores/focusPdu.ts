@@ -8,7 +8,7 @@ const STORAGE_KEY = 'focus_pdu_perspective_enabled'
 export const useFocusPduStore = defineStore('focusPdu', () => {
   const enabled = ref(localStorage.getItem(STORAGE_KEY) === '1')
   const items = ref<FocusPduItem[]>([])
-  const targetDepth = ref(4)
+  const targetDepth = ref(3)
   const loading = ref(false)
   const loaded = ref(false)
 

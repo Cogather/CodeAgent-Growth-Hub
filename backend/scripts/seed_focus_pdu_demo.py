@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""演示「重点关注 PDU」：扩展四级部门、调整人员归属、写入关注列表。
+"""演示「重点关注 PDU」：扩展三级部门、调整人员归属、写入关注列表。
 
 前置：已运行 seed_demo_data.py（组织树与人员基础数据）。
 
@@ -12,35 +12,35 @@ from app.database import SessionLocal
 from app.models import MetaDepartment, MetaFocusPdu, MetaPersonnel
 from app.services.hr_lookup import name_to_initial
 
-# 四级 PDU（父节点须已存在于 seed_demo_data）
+# 三级 PDU（父节点须已存在于 seed_demo_data）
 EXTRA_DEPARTMENTS: list[tuple[str, str, str]] = [
-    ("CCN-RD-PDU-PLAT", "CCN-RD", "平台PDU"),
-    ("CCN-RD-PDU-PROTO", "CCN-RD", "协议PDU"),
+    ("CCN-PL-PDU-PLAT", "CCN-PL", "平台PDU"),
+    ("CCN-PL-PDU-PROTO", "CCN-PL", "协议PDU"),
     ("CCN-QA-PDU-AUTO", "CCN-QA", "自动化PDU"),
 ]
 
-FOCUS_PDU_CODES = ["CCN-RD-PDU-PLAT", "CCN-RD-PDU-PROTO"]
+FOCUS_PDU_CODES = ["CCN-PL-PDU-PLAT", "CCN-PL-PDU-PROTO"]
 
 DEPT_CODES = {
     "ICT-BG": "ICT-BG",
     "云核心网产品线": "CCN-PL",
     "云核心网研发管理部": "CCN-RD",
     "云核心网测试部": "CCN-QA",
-    "平台PDU": "CCN-RD-PDU-PLAT",
-    "协议PDU": "CCN-RD-PDU-PROTO",
+    "平台PDU": "CCN-PL-PDU-PLAT",
+    "协议PDU": "CCN-PL-PDU-PROTO",
     "自动化PDU": "CCN-QA-PDU-AUTO",
 }
 
-# 工号 -> 新部门路径（含四级 PDU）
+# 工号 -> 新部门路径（含三级 PDU）
 PERSONNEL_PATHS: dict[str, list[str]] = {
-    "10001": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "平台PDU"],
-    "10002": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "平台PDU"],
-    "10003": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "平台PDU"],
-    "10004": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "平台PDU"],
-    "10005": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "协议PDU"],
-    "10006": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "协议PDU"],
-    "10017": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "平台PDU"],
-    "10018": ["ICT-BG", "云核心网产品线", "云核心网研发管理部", "协议PDU"],
+    "10001": ["ICT-BG", "云核心网产品线", "平台PDU"],
+    "10002": ["ICT-BG", "云核心网产品线", "平台PDU"],
+    "10003": ["ICT-BG", "云核心网产品线", "平台PDU"],
+    "10004": ["ICT-BG", "云核心网产品线", "平台PDU"],
+    "10005": ["ICT-BG", "云核心网产品线", "协议PDU"],
+    "10006": ["ICT-BG", "云核心网产品线", "协议PDU"],
+    "10017": ["ICT-BG", "云核心网产品线", "平台PDU"],
+    "10018": ["ICT-BG", "云核心网产品线", "协议PDU"],
     "10007": ["ICT-BG", "云核心网产品线", "云核心网测试部", "自动化PDU"],
     "10008": ["ICT-BG", "云核心网产品线", "云核心网测试部", "自动化PDU"],
     "10009": ["ICT-BG", "云核心网产品线", "云核心网测试部", "自动化PDU"],
@@ -84,7 +84,7 @@ def main() -> None:
             db.add(MetaFocusPdu(dept_code=code, alias=None, sort_order=i))
 
         db.commit()
-        print("已写入四级 PDU 部门、更新人员路径，并设置关注：", ", ".join(FOCUS_PDU_CODES))
+        print("已写入三级 PDU 部门、更新人员路径，并设置关注：", ", ".join(FOCUS_PDU_CODES))
         print("开启 PDU 视角后：人员名单约 8 人（两个研发 PDU）；关闭为全员 23 人（演示数据）。")
     finally:
         db.close()

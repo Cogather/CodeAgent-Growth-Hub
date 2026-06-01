@@ -6,11 +6,21 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 export default defineConfig({
   plugins: [
     vue(),
-    nodePolyfills()
+    nodePolyfills({
+      globals: {
+        globalThis: true
+      }
+    })
   ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
+    }
+  },
+  build: {
+    target: 'es2015',
+    commonjsOptions: {
+      transformMixedEsModules: true
     }
   },
   server: {

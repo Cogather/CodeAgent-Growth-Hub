@@ -78,6 +78,7 @@ import type { ElTree } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { personnelApi } from '@/api/personnel'
 import { departmentApi } from '@/api/department'
+import { useFocusPduStore } from '@/stores/focusPdu'
 import type { DepartmentNode, NetworkZone, PersonnelItem } from '@/types'
 import { ZONE_META } from '@/types'
 import {
@@ -121,6 +122,7 @@ const barChartRef = ref<HTMLElement>()
 const pieChart = shallowRef<echarts.ECharts>()
 const barChart = shallowRef<echarts.ECharts>()
 
+const focusPdu = useFocusPduStore()
 const zoneLabel = computed(() => ZONE_META[props.zone].label)
 const permittedSet = computed(() => new Set(props.permittedEmpNos))
 
@@ -270,7 +272,10 @@ const selectDefaultNode = async () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const [personnelRes, tree] = await Promise.all([personnelApi.listAll(), departmentApi.getTree()])
+    const [personnelRes, tree] = await Promise.all([
+      personnelApi.listAll({ focus_pdu_only: focusPdu.enabled || undefined }),
+      departmentApi.getTree()
+    ])
     personnel.value = personnelRes.items
     deptTree.value = tree
     await selectDefaultNode()
